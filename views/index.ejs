@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            height: 100%;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .filter {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .filter-input {
+            display: flex;
+            flex-direction: row;
+            width: 50%;
+        }
+
+        .filter-action {
+            display: flex;
+            flex-direction: row;
+            width: 50%;
+            justify-content: flex-end;
+        }
+
+        input[type="date"],
+        input[type="month"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 20%;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: medium;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .container-pa {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            width: 20%;
+        }
+
+        #pageInfo {
+            align-self: center;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            /* Ẩn modal theo mặc định */
+            position: fixed;
+            z-index: 1;
+            /* Đặt trên cùng */
+            left: 0;
+            top: 0;
+            width: 100%;
+            /* Toàn bộ chiều rộng */
+            height: 100%;
+            /* Toàn bộ chiều cao */
+            overflow: auto;
+            /* Nếu cần cuộn */
+            background-color: rgb(0, 0, 0);
+            /* Màu nền */
+            background-color: rgba(0, 0, 0, 0.4);
+            /* Màu nền với độ trong suốt */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            /* Căn giữa */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 30%;
+            /* Chiều rộng */
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            width: 20px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        #confirmExportBtn {
+            margin-top: 20px;
+            align-self: center;
+            width: 50%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: flex-end;
+            flex-direction: row;
+            width: 100%;
+        }
+
+        .export-date,
+        .export-month {
+            min-width: 70%;
+            margin-top: 30px;
+        }
+
+        #exportDate,
+        #exportMonth {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #monthFilter {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        #exportDateBtn {
+            margin-right: 10px;
+        }
+
+        .logo-left,
+        .logo-right {
+            width: 100px;
+            height: 100px;
+        }
+
+        .logo-img {
+            width: 100%;
+            height: 100%;
+        }
+
+        .header-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-btn {
+            margin-left: 10px;
+        }
+
+        .note {
+            width: 500px;
+            color: #333;
+            /* Text color */
+
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header-container">
+            <div class="logo-left">
+              
+            </div>
+            <h1>ALARM CONSOLE</h1>
+            <div class="logo-right">
+		    <img src="https://static.ybox.vn/2022/5/2/1653386529734-nguyen-hong-minh201866kj-avatar.png"
+                    class="logo-img" alt="logo" />
+            </div>
+        </div>
+
+
+        <div class="filter">
+            <div class="filter-input">
+                <input type="date" id="dateFilter" placeholder="Filter by date">
+                <input type="month" id="monthFilter" placeholder="Filter by month">
+                <input type="text" id="sensorFilter" placeholder="Filter by sensor">
+                <div class="filter-btn">
+                    <button id="filterBtn">
+                        Filter
+                    </button>
+                </div>
+            </div>
+            <div class="filter-action">
+                <button id="exportDateBtn">Export</button>
+                <button id="refreshBtn">Refresh</button>
+            </div>
+
+        </div>
+
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Sensor</th>
+                    <th>State</th>
+                    <th>
+                        Acknowledgment
+                    </th>
+                    <th>
+                        Alarm class
+                    </th>
+                    <th>
+                        Priority
+                    </th>
+                    <th>
+                        Message
+                    </th>
+                    <th>
+                        Timestamp
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="dataBody"></tbody>
+        </table>
+
+        <div class="container-pa">
+            <div class="note">
+                
+            </div>
+            <div class="pagination">
+                <button id="prevPageBtn">
+                    Previous
+                </button>
+                <span id="pageInfo"></span>
+                <button id="nextPageBtn">
+                    Next
+                </button>
+
+            </div>
+            <div class="note">
+                <!-- <span>*note: This data only displays the last 30 days. If you want to see more, please export the
+                    data.</span> -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal cho xuất dữ liệu -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="export-date">
+                <label for="exportDate">
+                    Select date:
+                </label>
+                <input type="date" id="exportDate">
+            </div>
+            <div class="export-month">
+                <label for="exportMonth">
+                    Select month:
+                </label>
+                <input type="month" id="exportMonth">
+            </div>
+            <button id="confirmExportBtn">
+                Export
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = 'http://192.168.2.150:3008/api/sensor';
+        let currentPage = 1;
+        let totalPages = 0; // Biến để lưu tổng số trang
+
+        document.getElementById('filterBtn').addEventListener('click', filterData);
+        document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
+        document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
+        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
+        document.getElementById('closeModal').addEventListener('click', closeExportModal);
+        document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            fetchData(currentPage); // Tải lại dữ liệu
+        });
+        function fetchData(page) {
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            const sensor = document.getElementById('sensorFilter').value; // Lấy giá trị sensor
+
+            let url = `${apiUrl}?page=${page}`;
+
+            if (date) {
+                url += `&date=${date}`;
+            } else if (month) {
+                url += `&month=${month}`;
+            }
+
+            if (sensor) { // Thêm điều kiện cho sensor
+                url += `&sensor=${sensor}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    renderTable(data);
+                    updatePageInfo(page);
+                    checkPagination(); // Kiểm tra điều kiện phân trang
+                });
+        }
+
+        function fetchTotalPages() {
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            const sensor = document.getElementById('sensorFilter').value; // Lấy giá trị sensor
+
+            let url = `${apiUrl}/count`;
+
+            if (date) {
+                url += `?date=${date}`;
+            } else if (month) {
+                url += `?month=${month}`;
+            }
+
+            if (sensor) { // Thêm điều kiện cho sensor
+                url += `&sensor=${sensor}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    totalPages = Math.ceil(data.total / 10); // Giả sử mỗi trang có 10 bản ghi
+                    checkPagination(); // Kiểm tra điều kiện phân trang
+                })
+                .catch(error => console.error('Error fetching total pages:', error));
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            fetchData(currentPage);
+        }
+
+        function checkPagination() {
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        function updatePageInfo(page) {
+            document.getElementById('pageInfo').textContent = `Page ${page}`;
+        }
+
+        function renderTable(data) {
+            const dataBody = document.getElementById('dataBody');
+            dataBody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+
+                // Chuyển đổi timestamp sang múi giờ +7
+                //const localTimestamp = new Date(item.timestamp).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok' });
+		let timestampRaw = item.timestamp;
+		let formattedTimestamp = timestampRaw.replace('T', ' ').replace('.000Z', '');
+                row.innerHTML = `
+                    <td>${item.sensor}</td>
+                    <td>${item.sensor_state}</td>
+                    <td>${item.acknowledgment_state}</td>
+                    <td>${item.alarm_class}</td>
+                    <td>${item.priority}</td>
+                    <td>${item.message}</td>
+                    <td>${formattedTimestamp}</td>
+                `;
+                dataBody.appendChild(row);
+            });
+        }
+
+        function filterData() {
+            currentPage = 1; // Reset về trang đầu
+            fetchData(currentPage);
+            fetchTotalPages(); // Lấy tổng số trang mỗi khi lọc dữ liệu
+        }
+
+
+
+        function openExportModal() {
+            document.getElementById('exportModal').style.display = 'block';
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function confirmExport() {
+            const date = document.getElementById('exportDate').value;
+            const month = document.getElementById('exportMonth').value;
+
+            if (date) {
+                window.open(`${apiUrl}/date?date=${date}`);
+            } else if (month) {
+                window.open(`${apiUrl}/month?month=${month}`);
+            } else {
+                alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
+            }
+
+            closeExportModal(); // Đóng modal sau khi xuất
+        }
+
+        // Tải dữ liệu ban đầu và tổng số trang
+        fetchData(currentPage);
+        fetchTotalPages();
+
+        // Lấy dữ liệu liên tục mỗi 5 giây (5000 ms)
+        setInterval(() => {
+            fetchData(currentPage);
+        }, 5000);
+
+        // Đóng modal khi nhấp ra ngoài
+        window.onclick = function (event) {
+            const modal = document.getElementById('exportModal');
+            if (event.target === modal) {
+                closeExportModal();
+            }
+        }
+    </script>
+
+</body>
+
+</html>
