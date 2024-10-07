@@ -1,0 +1,39 @@
+rest_command:
+  store_issue:
+    url: "http://127.0.0.1:8081/api/fos/agile/issues/store"
+    method: POST
+    headers:
+      Content-Type: application/json
+    payload: >
+      {
+        "name": "{{ name }}",
+        "infra_id": "{{ infra_id }}",
+        "create_id": "{{ create_id }}",
+        "flow_id": "{{ flow_id }}",
+        "project_id": "{{ project_id }}"
+      }
+  
+  send_sensor_data:
+    url: 'http://192.168.2.150:3008/api/sensor'
+    method: POST
+    headers:
+      Content-Type: application/json
+    payload: >
+      {
+        "sensor": "{{ sensor }}",
+        "sensor_state": "{{ sensor_state }}",
+        "acknowledgment_state": "{{ acknowledgment_state }}",
+        "alarm_class": "{{ alarm_class }}",
+        "priority": {{ priority }},
+        "message": "{{ message }}",
+        "status": "{{ status }}"
+      }
+  send_sensor_data_done:
+    url: 'http://192.168.2.150:3008/api/sensor/status/done'
+    method: PUT
+    headers:
+      Content-Type: application/json
+    payload: >
+      {
+        "id": "{{ id }}"
+      }

@@ -16,19 +16,19 @@ app.set('views', path.join(__dirname, 'views')); // Đường dẫn tới thư m
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Kết nối đến MySQL
-const db = mysql.createConnection({
-    host: '172.30.33.2',
-    user: 'homeassistant',
-    password: 'dcs123456',
-    database: 'homeassistant'
-});
-
 // const db = mysql.createConnection({
-//     host: 'localhost',
-//     user: 'root',
-//     password: '123456789',
+//     host: '172.30.33.2',
+//     user: 'homeassistant',
+//     password: 'dcs123456',
 //     database: 'homeassistant'
 // });
+
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '123456789',
+    database: 'homeassistant'
+});
 
 db.connect(err => {
     if (err) throw err;
@@ -93,7 +93,7 @@ app.get('/api/sensor', (req, res) => {
 
     db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-	
+
         res.json(results);
     });
 });
@@ -169,7 +169,7 @@ app.get('/api/sensor/pending', (req, res) => {
     const month = req.query.month;
     const sensor = req.query.sensor; // Thêm tham số sensor
 
-    let sql = 'SELECT * FROM alarm WHERE status != "hide"'; // Lấy những bản ghi không có trạng thái hide
+    let sql = 'SELECT * FROM alarm WHERE status != "hide" AND timestamp >= NOW() - INTERVAL 30 DAY'; // Lấy những bản ghi không có trạng thái hide và trong 30 ngày gần nhất
 
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
@@ -181,13 +181,18 @@ app.get('/api/sensor/pending', (req, res) => {
         sql += ' AND sensor = ?'; // Thêm điều kiện cho sensor
     }
 
+    // Thêm điều kiện lọc theo trạng thái
+    if (sensor === 'new' || sensor === 'pending' || sensor === 'done') {
+        sql += ' AND status = ?';
+    }
+
     sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
 
-    const params = [date || month, sensor, limit, offset].filter(param => param !== undefined); // Lọc ra các tham số không có giá trị
+    const params = [date || month, sensor, sensor === 'new' || sensor === 'pending' || sensor === 'done' ? sensor : undefined, limit, offset].filter(param => param !== undefined); // Lọc ra các tham số không có giá trị
 
     db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-	
+
         res.json(results);
     });
 });
@@ -208,8 +213,8 @@ app.put('/api/sensor/status/pending/:id', (req, res) => {
 });
 
 // API chuyển trạng thái từ pending sang done
-app.put('/api/sensor/status/done/:id', (req, res) => {
-    const id = req.params.id;
+app.put('/api/sensor/status/done', (req, res) => {
+    const { id } = req.body; // Lấy ID từ body
     const sql = 'UPDATE alarm SET status = "done", timestamp = NOW() WHERE id = ? AND status = "pending"';
 
     db.query(sql, [id], (err, result) => {
@@ -246,9 +251,9 @@ app.get('/pending', (req, res) => {
 });
 
 // Khởi động server
-app.listen(PORT, '192.168.2.150' ,() => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
-// app.listen(PORT ,() => {
+// app.listen(PORT, '192.168.2.150' ,() => {
 //     console.log(`Server is running on http://localhost:${PORT}`);
 // });
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});

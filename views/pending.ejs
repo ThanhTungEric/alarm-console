@@ -11,9 +11,7 @@
 <body>
     <div class="container">
         <div class="header-container">
-            <div class="logo-left">
-
-            </div>
+            <div class="logo-left"></div>
             <h1>ALARM CONSOLE</h1>
             <div class="logo-right">
                 <img src="https://static.ybox.vn/2022/5/2/1653386529734-nguyen-hong-minh201866kj-avatar.png"
@@ -25,18 +23,20 @@
             <div class="filter-input">
                 <input type="date" id="dateFilter" placeholder="Filter by date">
                 <input type="month" id="monthFilter" placeholder="Filter by month">
-                <input type="text" id="sensorFilter" placeholder="Filter by sensor">
+                <select id="sensorFilter">
+                    <option value="">Chọn trạng thái</option>
+                    <option value="new">Mới</option>
+                    <option value="pending">Đợi</option>
+                    <option value="done">Đã kết nối</option>
+                </select>
                 <div class="filter-btn">
-                    <button id="filterBtn">
-                        Filter
-                    </button>
+                    <button id="filterBtn">Filter</button>
                 </div>
             </div>
             <div class="filter-action">
                 <button id="exportDateBtn">Export</button>
                 <button id="refreshBtn">Refresh</button>
             </div>
-
         </div>
 
         <table id="dataTable">
@@ -56,20 +56,13 @@
         </table>
 
         <div class="container-pa">
-            <div class="note">
-
-            </div>
+            <div class="note"></div>
             <div class="pagination">
-                <button id="prevPageBtn">
-                    Previous
-                </button>
+                <button id="prevPageBtn">Previous</button>
                 <span id="pageInfo"></span>
-                <button id="nextPageBtn">
-                    Next
-                </button>
+                <button id="nextPageBtn">Next</button>
             </div>
-            <div class="note">
-            </div>
+            <div class="note"></div>
         </div>
     </div>
 
@@ -91,8 +84,7 @@
     </div>
 
     <script>
-        //const apiUrl = 'http://localhost:3008/api/sensor/pending';
-        const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending';
+        const apiUrl = 'http://localhost:3008/api/sensor/pending';
         let currentPage = 1;
         let totalPages = 0;
 
@@ -115,10 +107,10 @@
 
             if (date) {
                 url += `&date=${date}`;
-            } else if (month) {
+            }
+            if (month) {
                 url += `&month=${month}`;
             }
-
             if (sensor) {
                 url += `&sensor=${sensor}`;
             }
@@ -128,9 +120,11 @@
                 .then(data => {
                     renderTable(data);
                     updatePageInfo(page);
-                    checkPagination();
-                });
+                    fetchTotalPages(); // Gọi hàm fetchTotalPages để cập nhật tổng số trang
+                })
+                .catch(error => console.error('Error fetching data:', error));
         }
+
 
         function fetchTotalPages() {
             const date = document.getElementById('dateFilter').value;
@@ -139,14 +133,19 @@
 
             let url = `${apiUrl}/count`;
 
+            let params = [];
             if (date) {
-                url += `?date=${date}`;
-            } else if (month) {
-                url += `?month=${month}`;
+                params.push(`date=${date}`);
+            }
+            if (month) {
+                params.push(`month=${month}`);
+            }
+            if (sensor) {
+                params.push(`sensor=${sensor}`);
             }
 
-            if (sensor) {
-                url += `&sensor=${sensor}`;
+            if (params.length > 0) {
+                url += `?${params.join('&')}`; // Thêm các tham số vào URL
             }
 
             fetch(url)
@@ -157,6 +156,12 @@
                 })
                 .catch(error => console.error('Error fetching total pages:', error));
         }
+
+        document.getElementById('sensorFilter').addEventListener('change', () => {
+            currentPage = 1; // Đặt lại trang hiện tại về 1
+            fetchData(currentPage);
+        });
+
 
         function changePage(direction) {
             currentPage += direction;
@@ -187,6 +192,7 @@
                     actionButton = `<button onclick="updateStatusToHide(${item.id})">Xác nhận</button>`;
                 }
 
+                let statusClass = '';
                 switch (item.status) {
                     case 'new':
                         statusClass = 'new';
@@ -201,22 +207,20 @@
 
                 row.className = statusClass; // Set class for the entire row
 
-
                 row.innerHTML = `
-            <td>${item.sensor}</td>
-            <td>${item.sensor_state}</td>
-            <td>${item.acknowledgment_state}</td>
-            <td>${item.alarm_class}</td>
-            <td>${item.priority}</td>
-            <td>${item.message}</td>
-            <td>${formattedTimestamp}</td>
-            <td>${actionButton}</td>
-        `;
+                    <td>${item.sensor}</td>
+                    <td>${item.sensor_state}</td>
+                    <td>${item.acknowledgment_state}</td>
+                    <td>${item.alarm_class}</td>
+                    <td>${item.priority}</td>
+                    <td>${item.message}</td>
+                    <td>${formattedTimestamp}</td>
+                    <td>${actionButton}</td>
+                `;
                 dataBody.appendChild(row);
             });
         }
 
-        // Hàm gọi API để cập nhật trạng thái sang pending
         function updateStatusToPending(id) {
             fetch(`/api/sensor/status/pending/${id}`, {
                 method: 'PUT'
@@ -229,7 +233,6 @@
                 .catch(error => console.error('Error:', error));
         }
 
-        // Hàm gọi API để cập nhật trạng thái sang hide
         function updateStatusToHide(id) {
             fetch(`/api/sensor/status/hide/${id}`, {
                 method: 'PUT'
@@ -241,7 +244,6 @@
                 })
                 .catch(error => console.error('Error:', error));
         }
-
 
         function filterData() {
             currentPage = 1;
