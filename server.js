@@ -16,19 +16,19 @@ app.set('views', path.join(__dirname, 'views')); // Đường dẫn tới thư m
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Kết nối đến MySQL
-// const db = mysql.createConnection({
-//     host: '172.30.33.2',
-//     user: 'homeassistant',
-//     password: 'dcs123456',
-//     database: 'homeassistant'
-// });
-
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '123456789',
+    host: '172.30.33.2',
+    user: 'homeassistant',
+    password: 'dcs123456',
     database: 'homeassistant'
 });
+
+// const db = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: '123456789',
+//     database: 'homeassistant'
+// });
 
 db.connect(err => {
     if (err) throw err;
@@ -251,9 +251,9 @@ app.get('/pending', (req, res) => {
 });
 
 // Khởi động server
-// app.listen(PORT, '192.168.2.150' ,() => {
-//     console.log(`Server is running on http://localhost:${PORT}`);
-// });
-app.listen(PORT, () => {
+app.listen(PORT, '192.168.2.150' ,() => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
+// app.listen(PORT, () => {
+//     console.log(`Server is running on http://localhost:${PORT}`);
+// });
