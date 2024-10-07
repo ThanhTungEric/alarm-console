@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data</title>
+    <link rel="stylesheet" href="/pending.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header-container">
+            <div class="logo-left">
+
+            </div>
+            <h1>ALARM CONSOLE</h1>
+            <div class="logo-right">
+                <img src="https://static.ybox.vn/2022/5/2/1653386529734-nguyen-hong-minh201866kj-avatar.png"
+                    class="logo-img" alt="logo" />
+            </div>
+        </div>
+
+        <div class="filter">
+            <div class="filter-input">
+                <input type="date" id="dateFilter" placeholder="Filter by date">
+                <input type="month" id="monthFilter" placeholder="Filter by month">
+                <input type="text" id="sensorFilter" placeholder="Filter by sensor">
+                <div class="filter-btn">
+                    <button id="filterBtn">
+                        Filter
+                    </button>
+                </div>
+            </div>
+            <div class="filter-action">
+                <button id="exportDateBtn">Export</button>
+                <button id="refreshBtn">Refresh</button>
+            </div>
+
+        </div>
+
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Sensor</th>
+                    <th>State</th>
+                    <th>Acknowledgment</th>
+                    <th>Alarm class</th>
+                    <th>Priority</th>
+                    <th>Message</th>
+                    <th>Timestamp</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="dataBody"></tbody>
+        </table>
+
+        <div class="container-pa">
+            <div class="note">
+
+            </div>
+            <div class="pagination">
+                <button id="prevPageBtn">
+                    Previous
+                </button>
+                <span id="pageInfo"></span>
+                <button id="nextPageBtn">
+                    Next
+                </button>
+            </div>
+            <div class="note">
+            </div>
+        </div>
+    </div>
+
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="export-date">
+                <label for="exportDate">Select date:</label>
+                <input type="date" id="exportDate">
+            </div>
+            <div class="export-month">
+                <label for="exportMonth">Select month:</label>
+                <input type="month" id="exportMonth">
+            </div>
+            <button id="confirmExportBtn">Export</button>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = 'http://localhost:3008/api/sensor/pending';
+        let currentPage = 1;
+        let totalPages = 0;
+
+        document.getElementById('filterBtn').addEventListener('click', filterData);
+        document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
+        document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
+        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
+        document.getElementById('closeModal').addEventListener('click', closeExportModal);
+        document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            fetchData(currentPage);
+        });
+
+        function fetchData(page) {
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            const sensor = document.getElementById('sensorFilter').value;
+
+            let url = `${apiUrl}?page=${page}`;
+
+            if (date) {
+                url += `&date=${date}`;
+            } else if (month) {
+                url += `&month=${month}`;
+            }
+
+            if (sensor) {
+                url += `&sensor=${sensor}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    renderTable(data);
+                    updatePageInfo(page);
+                    checkPagination();
+                });
+        }
+
+        function fetchTotalPages() {
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            const sensor = document.getElementById('sensorFilter').value;
+
+            let url = `${apiUrl}/count`;
+
+            if (date) {
+                url += `?date=${date}`;
+            } else if (month) {
+                url += `?month=${month}`;
+            }
+
+            if (sensor) {
+                url += `&sensor=${sensor}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    totalPages = Math.ceil(data.total / 10);
+                    checkPagination();
+                })
+                .catch(error => console.error('Error fetching total pages:', error));
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            fetchData(currentPage);
+        }
+
+        function checkPagination() {
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        function updatePageInfo(page) {
+            document.getElementById('pageInfo').textContent = `Page ${page}`;
+        }
+
+        function renderTable(data) {
+            const dataBody = document.getElementById('dataBody');
+            dataBody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                let formattedTimestamp = item.timestamp.replace('T', ' ').replace('.000Z', '');
+                let actionButton = '';
+
+                if (item.status === 'new') {
+                    actionButton = `<button class="confirm-button" onclick="updateStatusToPending(${item.id})">Xác nhận</button>`;
+                } else if (item.status === 'done') {
+                    actionButton = `<button onclick="updateStatusToHide(${item.id})">Xác nhận</button>`;
+                }
+
+                switch (item.status) {
+                    case 'new':
+                        statusClass = 'new';
+                        break;
+                    case 'pending':
+                        statusClass = 'pending';
+                        break;
+                    case 'done':
+                        statusClass = 'done';
+                        break;
+                }
+
+                row.className = statusClass; // Set class for the entire row
+
+
+                row.innerHTML = `
+            <td>${item.sensor}</td>
+            <td>${item.sensor_state}</td>
+            <td>${item.acknowledgment_state}</td>
+            <td>${item.alarm_class}</td>
+            <td>${item.priority}</td>
+            <td>${item.message}</td>
+            <td>${formattedTimestamp}</td>
+            <td>${actionButton}</td>
+        `;
+                dataBody.appendChild(row);
+            });
+        }
+
+        // Hàm gọi API để cập nhật trạng thái sang pending
+        function updateStatusToPending(id) {
+            fetch(`/api/sensor/status/pending/${id}`, {
+                method: 'PUT'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchData(currentPage); // Cập nhật lại dữ liệu bảng
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Hàm gọi API để cập nhật trạng thái sang hide
+        function updateStatusToHide(id) {
+            fetch(`/api/sensor/status/hide/${id}`, {
+                method: 'PUT'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchData(currentPage); // Cập nhật lại dữ liệu bảng
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+
+        function filterData() {
+            currentPage = 1;
+            fetchData(currentPage);
+            fetchTotalPages();
+        }
+
+        function openExportModal() {
+            document.getElementById('exportModal').style.display = 'block';
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function confirmExport() {
+            const date = document.getElementById('exportDate').value;
+            const month = document.getElementById('exportMonth').value;
+
+            if (date) {
+                window.open(`${apiUrl}/date?date=${date}`);
+            } else if (month) {
+                window.open(`${apiUrl}/month?month=${month}`);
+            } else {
+                alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
+            }
+
+            closeExportModal();
+        }
+
+        fetchData(currentPage);
+        fetchTotalPages();
+
+        setInterval(() => {
+            fetchData(currentPage);
+        }, 5000);
+
+        window.onclick = function (event) {
+            const modal = document.getElementById('exportModal');
+            if (event.target === modal) {
+                closeExportModal();
+            }
+        }
+    </script>
+
+</body>
+
+</html>
