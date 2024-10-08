@@ -39,13 +39,31 @@ db.connect(err => {
 // API ghi dữ liệu
 app.post('/api/sensor', (req, res) => {
     const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
-    const sql = 'INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
 
-    db.query(sql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
+    // Kiểm tra xem có bản ghi nào với sensor có status là 'pending' hoặc 'done'
+    const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND (status = "pending" OR status = "done")';
+
+    db.query(checkSql, [sensor], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ id: result.insertId });
+
+        if (results.length > 0) {
+            // Nếu có bản ghi, cập nhật trạng thái thành 'new'
+            const updateSql = 'UPDATE alarm SET status = "new", timestamp = NOW() WHERE sensor = ?';
+            db.query(updateSql, [sensor], (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
+            });
+        } else {
+            // Nếu không có bản ghi, chèn bản ghi mới
+            const insertSql = 'INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
+            db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(201).json({ id: result.insertId });
+            });
+        }
     });
 });
+
 
 // API để lấy tổng số bản ghi
 app.get('/api/sensor/count', (req, res) => {
