@@ -214,10 +214,10 @@ app.put('/api/sensor/status/pending/:id', (req, res) => {
 
 // API chuyển trạng thái từ pending sang done
 app.put('/api/sensor/status/done', (req, res) => {
-    const { id } = req.body; // Lấy ID từ body
-    const sql = 'UPDATE alarm SET status = "done", timestamp = NOW() WHERE id = ? AND status = "pending"';
+    const { sensor } = req.body; // Lấy sensor từ body
+    const sql = 'UPDATE alarm SET status = "done", timestamp = NOW() WHERE sensor = ? AND status = "pending"';
 
-    db.query(sql, [id], (err, result) => {
+    db.query(sql, [sensor], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Không tìm thấy bản ghi hoặc trạng thái đang làm.' });
@@ -225,7 +225,6 @@ app.put('/api/sensor/status/done', (req, res) => {
         res.json({ message: 'Trạng thái đã được cập nhật.' });
     });
 });
-
 
 // API chuyển trạng thái từ done sang hide
 app.put('/api/sensor/status/hide/:id', (req, res) => {
