@@ -40,18 +40,18 @@ db.connect(err => {
 app.post('/api/sensor', (req, res) => {
     const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
 
-    // Kiểm tra xem có bản ghi nào với sensor có status là 'pending' hoặc 'done'
-    const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND (status = "pending" OR status = "done")';
+    // Kiểm tra xem có bản ghi nào với sensor có status là 'new', 'pending' hoặc 'done'
+    const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND (status = "new" OR status = "pending" OR status = "done")';
 
     db.query(checkSql, [sensor], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
 
         if (results.length > 0) {
-            // Nếu có bản ghi, cập nhật trạng thái thành 'new'
+            // Nếu có bản ghi, cập nhật tất cả trạng thái thành 'new'
             const updateSql = 'UPDATE alarm SET status = "new", timestamp = NOW() WHERE sensor = ?';
             db.query(updateSql, [sensor], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
+                res.json({ message: 'Tất cả trạng thái đã được cập nhật thành "new".' });
             });
         } else {
             // Nếu không có bản ghi, chèn bản ghi mới
@@ -63,6 +63,7 @@ app.post('/api/sensor', (req, res) => {
         }
     });
 });
+
 
 
 // API để lấy tổng số bản ghi
