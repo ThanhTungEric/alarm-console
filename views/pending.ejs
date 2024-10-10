@@ -24,10 +24,10 @@
                 <input type="date" id="dateFilter" placeholder="Filter by date">
                 <input type="month" id="monthFilter" placeholder="Filter by month">
                 <select id="sensorFilter">
-                    <option value="">Chọn trạng thái</option>
-                    <option value="new">Mới</option>
-                    <option value="pending">Đợi</option>
-                    <option value="done">Đã kết nối</option>
+                    <option value="">All status</option>
+                    <option value="new">New</option>
+                    <option value="pending">Pending</option>
+                    <option value="done">Reconnect</option>
                 </select>
                 <div class="filter-btn">
                     <button id="filterBtn">Filter</button>
@@ -127,36 +127,38 @@
         }
 
 
-        function fetchTotalPages() {
+        function fetchData(page) {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
             const sensor = document.getElementById('sensorFilter').value;
 
-            let url = `${apiUrl}/count`;
+            let url = `${apiUrl}?page=${page}`;
 
-            let params = [];
             if (date) {
-                params.push(`date=${date}`);
+                url += `&date=${date}`;
             }
             if (month) {
-                params.push(`month=${month}`);
+                url += `&month=${month}`;
             }
             if (sensor) {
-                params.push(`sensor=${sensor}`);
-            }
-
-            if (params.length > 0) {
-                url += `?${params.join('&')}`; // Thêm các tham số vào URL
+                url += `&sensor=${sensor}`;
             }
 
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    totalPages = Math.ceil(data.total / 10);
-                    checkPagination();
+                    renderTable(data);
+                    updatePageInfo(page);
+                    fetchTotalPages(); // Gọi hàm fetchTotalPages để cập nhật tổng số trang
                 })
-                .catch(error => console.error('Error fetching total pages:', error));
+                .catch(error => console.error('Error fetching data:', error));
         }
+
+        document.getElementById('sensorFilter').addEventListener('change', () => {
+            currentPage = 1; // Đặt lại trang hiện tại về 1
+            fetchData(currentPage);
+        });
+
 
         document.getElementById('sensorFilter').addEventListener('change', () => {
             currentPage = 1; // Đặt lại trang hiện tại về 1
