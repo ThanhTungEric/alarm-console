@@ -47,15 +47,25 @@ app.post('/api/sensor', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         if (results.length > 0) {
-            // Nếu có bản ghi, cập nhật tất cả trạng thái thành 'new'
-            const updateSql = 'UPDATE alarm SET status = "new", timestamp = NOW() WHERE sensor = ?';
+            // Nếu có bản ghi, cập nhật tất cả trạng thái thành 'new' và thêm vào change_timestamps
+            const updateSql = `
+                UPDATE alarm 
+                SET 
+                    status = "new", 
+                    timestamp = NOW(), 
+                    change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
+                WHERE sensor = ?`;
+
             db.query(updateSql, [sensor], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ message: 'Tất cả trạng thái đã được cập nhật thành "new".' });
             });
         } else {
-            // Nếu không có bản ghi, chèn bản ghi mới
-            const insertSql = 'INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
+            // Nếu không có bản ghi, chèn bản ghi mới với change_timestamps chứa thời gian và trạng thái là 'new'
+            const insertSql = `
+                INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
+
             db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
                 res.status(201).json({ id: result.insertId });
@@ -63,6 +73,8 @@ app.post('/api/sensor', (req, res) => {
         }
     });
 });
+
+
 
 
 
@@ -220,7 +232,14 @@ app.get('/api/sensor/pending', (req, res) => {
 // API chuyển trạng thái từ new sang pending
 app.put('/api/sensor/status/pending/:id', (req, res) => {
     const id = req.params.id;
-    const sql = 'UPDATE alarm SET status = "pending", timestamp = NOW() WHERE id = ? AND status = "new"';
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "pending", 
+            acknowledgment_state = "yes", 
+            timestamp = NOW(), 
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'pending')) 
+        WHERE id = ? AND status = "new"`;
 
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -231,10 +250,17 @@ app.put('/api/sensor/status/pending/:id', (req, res) => {
     });
 });
 
+
 // API chuyển trạng thái từ pending sang done
 app.put('/api/sensor/status/done', (req, res) => {
     const { sensor } = req.body; // Lấy sensor từ body
-    const sql = 'UPDATE alarm SET status = "done", timestamp = NOW() WHERE sensor = ? AND status = "pending"';
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "done", 
+            timestamp = NOW(), 
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
+        WHERE sensor = ? AND status = "pending"`;
 
     db.query(sql, [sensor], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -245,10 +271,17 @@ app.put('/api/sensor/status/done', (req, res) => {
     });
 });
 
+
 // API chuyển trạng thái từ done sang hide
 app.put('/api/sensor/status/hide/:id', (req, res) => {
     const id = req.params.id;
-    const sql = 'UPDATE alarm SET status = "hide" WHERE id = ? AND status = "done"';
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "hide", 
+            timestamp = NOW(), 
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'hide')) 
+        WHERE id = ? AND status = "done"`;
 
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -260,6 +293,59 @@ app.put('/api/sensor/status/hide/:id', (req, res) => {
 });
 
 
+
+// lấy dnah sách theo sensor
+app.get('/api/sensor/dpm', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    const date = req.query.date;
+    const month = req.query.month;
+    const sensor = req.query.sensor; // Thêm tham số sensor
+
+    let sql = 'SELECT * FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY'; // Lấy những bản ghi không có trạng thái hide và trong 30 ngày gần nhất
+
+    if (date) {
+        sql += ' AND DATE(timestamp) = ?';
+    } else if (month) {
+        sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
+    }
+
+    // Thêm điều kiện lọc theo sensor
+    if (sensor) {
+        sql += ' AND sensor = ?'; // Thêm điều kiện cho sensor
+    }
+
+    sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
+
+    // Tạo danh sách tham số
+    const params = [
+        date || month,
+        sensor, // Chỉ cần sensor đơn lẻ
+        limit,
+        offset
+    ].filter(param => param !== undefined); // Lọc ra các tham số không có giá trị
+
+    db.query(sql, params, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        res.json(results);
+    });
+});
+
+// Endpoint để lấy thông tin alarm theo ID
+app.get('/api/alarm/:id', (req, res) => {
+    const alarmId = req.params.id;
+    const sql = 'SELECT * FROM alarm WHERE id = ?';
+
+    db.query(sql, [alarmId], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0) return res.status(404).json({ message: 'Không tìm thấy alarm' });
+
+        res.json(results[0]); // Trả về alarm đầu tiên
+    });
+});
+
 // Route để render trang chính
 app.get('/', (req, res) => {
     res.render('index'); // Render file index.ejs
@@ -267,6 +353,26 @@ app.get('/', (req, res) => {
 app.get('/pending', (req, res) => {
     res.render('pending'); // Render file index.ejs
 });
+
+app.get('/historydpm', (req, res) => {
+    const sensor = req.query.sensor;
+
+    // Kiểm tra xem sensor có được truyền không
+    if (!sensor) {
+        return res.status(400).send('Sensor is required');
+    }
+
+    // Truy vấn dữ liệu từ cơ sở dữ liệu theo sensor
+    const sql = 'SELECT * FROM alarm WHERE sensor = ? ORDER BY timestamp DESC';
+    db.query(sql, [sensor], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Render dữ liệu vào historydpm.ejs
+        res.render('historydpm', { sensor, data: results });
+    });
+});
+
+
 
 // Khởi động server
 app.listen(PORT, '192.168.2.150' ,() => {

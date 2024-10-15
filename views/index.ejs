@@ -36,6 +36,7 @@
             <div class="filter-action">
                 <button id="exportDateBtn">Export</button>
                 <button id="refreshBtn">Refresh</button>
+                <button id="gotoalarm">Alarm console</button>
             </div>
 
         </div>
@@ -128,6 +129,9 @@
         document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
         document.getElementById('refreshBtn').addEventListener('click', () => {
             fetchData(currentPage); // Tải lại dữ liệu
+        });
+        document.getElementById('gotoalarm').addEventListener('click', () => {
+            window.location.href = '/pending'; // Chuyển hướng đến trang /pending
         });
         function fetchData(page) {
             const date = document.getElementById('dateFilter').value;

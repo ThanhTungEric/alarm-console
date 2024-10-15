@@ -97,40 +97,46 @@ th {
     align-self: center;
 }
 
-/* Modal Styles */
 .modal {
-    display: none;
-    /* Ẩn modal theo mặc định */
+    display: none; /* Ẩn modal theo mặc định */
     position: fixed;
-    z-index: 1;
-    /* Đặt trên cùng */
+    z-index: 1; /* Đặt trên cùng */
     left: 0;
     top: 0;
-    width: 100%;
-    /* Toàn bộ chiều rộng */
-    height: 100%;
-    /* Toàn bộ chiều cao */
-    overflow: auto;
-    /* Nếu cần cuộn */
-    background-color: rgb(0, 0, 0);
-    /* Màu nền */
-    background-color: rgba(0, 0, 0, 0.4);
-    /* Màu nền với độ trong suốt */
+    width: 100%; /* Toàn bộ chiều rộng */
+    height: 100vh; /* Toàn bộ chiều cao */
+    overflow: auto; /* Nếu cần cuộn */
+    background-color: rgb(0, 0, 0); /* Màu nền */
+    background-color: rgba(0, 0, 0, 0.4); /* Màu nền với độ trong suốt */
 }
 
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto;
-    /* Căn giữa */
+    margin: auto; /* Căn giữa */
     padding: 20px;
     border: 1px solid #888;
-    width: 30%;
-    /* Chiều rộng */
+    width: 50%; /* Chiều rộng */
+    max-height: 80%; /* Chiều cao tối đa */
+    overflow-y: auto; /* Cuộn dọc nếu nội dung vượt quá chiều cao */
     border-radius: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: flex-start; /* Căn trên cùng */
+}
+
+.alarm-container {
+    display: flex;
     justify-content: space-between;
+}
+
+.change-timestamps {
+    width: 50%; /* Chiếm 50% chiều rộng */
+    margin-right: 20px; /* Khoảng cách bên phải */
+}
+
+.alarm-info {
+    width: 50%; /* Chiếm 50% chiều rộng */
 }
 
 .close {
@@ -182,6 +188,9 @@ th {
 
 #exportDateBtn {
     margin-right: 10px;
+}
+#gotoalarm {
+    margin-left: 10px;
 }
 
 .logo-left,

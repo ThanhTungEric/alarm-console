@@ -70,7 +70,10 @@ table {
 
 th,
 td {
-    padding: 12px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 5px;
+    padding-bottom: 5px;
     text-align: left;
     border-bottom: 1px solid #ddd;
 }
@@ -95,6 +98,10 @@ th {
 
 #pageInfo {
     align-self: center;
+}
+
+#historyalarm{
+    margin-left: 10px;
 }
 
 /* Modal Styles */

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History Alarm - <%= sensor %>
+    </title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header-container">
+            <div class="logo-left"><button id="back">Back</button></div>
+            <h1>HISTORY ALARM - <%= sensor %>
+            </h1>
+            <div class="logo-right">
+                <img src="https://static.ybox.vn/2022/5/2/1653386529734-nguyen-hong-minh201866kj-avatar.png"
+                    class="logo-img" alt="logo" />
+            </div>
+        </div>
+
+        <div class="filter">
+            <div class="filter-input">
+                <input type="date" id="dateFilter" placeholder="Filter by date">
+                <input type="month" id="monthFilter" placeholder="Filter by month">
+                <div class="filter-btn">
+                    <button id="filterBtn">Filter</button>
+                </div>
+            </div>
+            <div class="filter-action">
+                <button id="exportDateBtn">Export</button>
+                <button id="refreshBtn">Refresh</button>
+            </div>
+        </div>
+
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Sensor</th>
+                    <th>State</th>
+                    <th>Acknowledgment</th>
+                    <th>Alarm class</th>
+                    <th>Priority</th>
+                    <th>Message</th>
+                    <th>Timestamp</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="dataBody">
+                <% data.forEach(item=> { %>
+                    <tr data-alarm-id="<%= item.id %>"> <!-- Thêm thuộc tính data-alarm-id -->
+                        <td>
+                            <%= item.sensor %>
+                        </td>
+                        <td>
+                            <%= item.sensor_state %>
+                        </td>
+                        <td>
+                            <%= item.acknowledgment_state %>
+                        </td>
+                        <td>
+                            <%= item.alarm_class %>
+                        </td>
+                        <td>
+                            <%= item.priority %>
+                        </td>
+                        <td>
+                            <%= item.message %>
+                        </td>
+                        <td>
+                            <%= typeof item.timestamp==='string' ? item.timestamp.replace('T', ' ' ).replace('.000Z', ''
+                                ) : item.timestamp %>
+                        </td>
+                        <td>
+                            <%= item.status %>
+                        </td>
+                    </tr>
+                    <% }) %>
+            </tbody>
+
+        </table>
+
+        <div class="container-pa">
+            <div class="note"></div>
+            <div class="pagination">
+                <button id="prevPageBtn">Previous</button>
+                <span id="pageInfo"></span>
+                <button id="nextPageBtn">Next</button>
+            </div>
+            <div class="note"></div>
+        </div>
+    </div>
+
+    <!-- Modal cho xuất dữ liệu -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="export-date">
+                <label for="exportDate">Select date:</label>
+                <input type="date" id="exportDate">
+            </div>
+            <div class="export-month">
+                <label for="exportMonth">Select month:</label>
+                <input type="month" id="exportMonth">
+            </div>
+            <button id="confirmExportBtn">Export</button>
+        </div>
+    </div>
+
+    <!-- Modal cho hiển thị thông tin alarm -->
+    <div id="alarmModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeAlarmModal">&times;</span>
+            <h2>Thông Tin Alarm</h2>
+            <div id="alarmDetails"></div>
+        </div>
+    </div>
+
+
+    <script>
+        // const apiUrl = 'http://localhost:3008/api/sensor/dpm'; // Đường dẫn API
+        // const apidpm = 'http://localhost:3008/api/alarm'; // Đường dẫn API
+        const apiUrl = 'http://192.168.2.150:3008/api/sensor/dpm'; // Đường dẫn API
+        const apidpm = 'http://192.168.2.150:3008/api/alarm'; // Đường dẫn API
+        let currentPage = 1;
+        document.getElementById('back').addEventListener('click', () => {
+            window.location.href = '/pending'; // Chuyển hướng đến trang /pending
+        });
+
+        document.getElementById('filterBtn').addEventListener('click', filterData);
+        document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
+        document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
+        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
+        document.getElementById('closeModal').addEventListener('click', closeExportModal);
+        document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            fetchData(currentPage); // Tải lại dữ liệu
+        });
+
+        function fetchData(page) {
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+
+            let url = `${apiUrl}?page=${page}&sensor=<%= sensor %>`; // Thêm sensor vào URL
+
+            if (date) {
+                url += `&date=${date}`;
+            } else if (month) {
+                url += `&month=${month}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    renderTable(data);
+                    updatePageInfo(page);
+                    checkPagination(); // Kiểm tra điều kiện phân trang
+                });
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            fetchData(currentPage);
+        }
+
+        function checkPagination() {
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            // Disable next button if there are no more pages
+            document.getElementById('nextPageBtn').disabled = false; // Cần cập nhật logic này nếu cần
+        }
+
+        function updatePageInfo(page) {
+            document.getElementById('pageInfo').textContent = `Page ${page}`;
+        }
+
+        function renderTable(data) {
+            const dataBody = document.getElementById('dataBody');
+            dataBody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                let formattedTimestamp = typeof item.timestamp === 'string' ? item.timestamp.replace('T', ' ').replace('.000Z', '') : item.timestamp;
+                row.innerHTML = `
+                    <td>${item.sensor}</td>
+                    <td>${item.sensor_state}</td>
+                    <td>${item.acknowledgment_state}</td>
+                    <td>${item.alarm_class}</td>
+                    <td>${item.priority}</td>
+                    <td>${item.message}</td>
+                    <td>${formattedTimestamp}</td>
+                    <td>${item.status}</td>
+                `;
+                dataBody.appendChild(row);
+            });
+        }
+
+        function filterData() {
+            currentPage = 1; // Reset về trang đầu
+            fetchData(currentPage);
+        }
+
+        function openExportModal() {
+            document.getElementById('exportModal').style.display = 'block';
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function confirmExport() {
+            const date = document.getElementById('exportDate').value;
+            const month = document.getElementById('exportMonth').value;
+
+            if (date) {
+                window.open(`${apiUrl}/date?date=${date}&sensor=<%= sensor %>`);
+            } else if (month) {
+                window.open(`${apiUrl}/month?month=${month}&sensor=<%= sensor %>`);
+            } else {
+                alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
+            }
+
+            closeExportModal(); // Đóng modal sau khi xuất
+        }
+        // Hàm để lấy thông tin alarm theo ID
+        function fetchAlarmById(alarmId) {
+            const apiUrl = `${apidpm}/${alarmId}`;
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Lỗi khi lấy dữ liệu alarm');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayAlarmDetails(data);
+                })
+                .catch(error => {
+                    console.error('Có lỗi xảy ra:', error);
+                });
+        }
+
+        function displayAlarmDetails(alarm) {
+            const alarmDetails = document.getElementById('alarmDetails');
+            const changeTimestamps = Array.isArray(alarm.change_timestamps)
+                ? alarm.change_timestamps.map(ts => {
+                    return typeof ts === 'object' ? JSON.parse(JSON.stringify(ts)) : ts;
+                })
+                : [alarm.change_timestamps]; // Đảm bảo là mảng
+
+            // Tạo bảng cho Change Timestamps
+            const changeTimestampsTable = `
+    <table style="width: 100%; border-collapse: collapse; margin-left: 30px">
+        <thead>
+            <tr>
+                <th style="border: 1px solid black; padding: 8px;">State</th>
+                <th style="border: 1px solid black; padding: 8px;">Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${changeTimestamps.map(ts => {
+                const time = ts.time || ts.timestamp; // Lấy thời gian
+                const state = ts.state; // Lấy trạng thái
+                return `<tr><td style="border: 1px solid black; padding: 8px;">${state}</td><td style="border: 1px solid black; padding: 8px;">${time}</td></tr>`;
+            }).join('')}
+        </tbody>
+    </table>
+    `;
+
+            alarmDetails.innerHTML = `
+        <div class="alarm-container">
+
+            <div class="alarm-info">
+                <p><strong>Sensor:</strong> ${alarm.sensor}</p>
+                <p><strong>State:</strong> ${alarm.sensor_state}</p>
+                <p><strong>Acknowledgment:</strong> ${alarm.acknowledgment_state}</p>
+                <p><strong>Alarm Class:</strong> ${alarm.alarm_class}</p>
+                <p><strong>Priority:</strong> ${alarm.priority}</p>
+                <p><strong>Message:</strong> ${alarm.message}</p>
+                <p><strong>Status:</strong> ${alarm.status}</p>
+            </div>
+                        <div class="change-timestamps">
+                <p><strong>Change Timestamps:</strong></p>
+                ${changeTimestampsTable}
+            </div>
+        </div>
+    `;
+
+            document.getElementById('alarmModal').style.display = 'block'; // Hiện modal
+        }
+
+        // Đóng modal khi nhấp vào nút đóng
+        document.getElementById('closeAlarmModal').addEventListener('click', () => {
+            document.getElementById('alarmModal').style.display = 'none';
+        });
+
+        // Sự kiện click trên bảng
+        document.getElementById('dataBody').addEventListener('click', (event) => {
+            const row = event.target.closest('tr');
+            if (row) {
+                const alarmId = row.dataset.alarmId; // Giả định bạn đã thêm thuộc tính data-alarm-id vào mỗi hàng
+                fetchAlarmById(alarmId);
+            }
+        });
+
+    </script>
+
+</body>
+
+</html>

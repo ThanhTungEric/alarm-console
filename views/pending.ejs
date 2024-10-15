@@ -36,6 +36,7 @@
             <div class="filter-action">
                 <button id="exportDateBtn">Export</button>
                 <button id="refreshBtn">Refresh</button>
+                <button id="historyalarm">History alarm</button>
             </div>
         </div>
 
@@ -85,9 +86,8 @@
 
     <script>
         //const apiUrl = 'http://localhost:3008/api/sensor/pending';
-        const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending'
+        const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending';
         let currentPage = 1;
-        let totalPages = 0;
 
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
@@ -99,33 +99,9 @@
             fetchData(currentPage);
         });
 
-        function fetchData(page) {
-            const date = document.getElementById('dateFilter').value;
-            const month = document.getElementById('monthFilter').value;
-            const sensor = document.getElementById('sensorFilter').value;
-
-            let url = `${apiUrl}?page=${page}`;
-
-            if (date) {
-                url += `&date=${date}`;
-            }
-            if (month) {
-                url += `&month=${month}`;
-            }
-            if (sensor) {
-                url += `&sensor=${sensor}`;
-            }
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    renderTable(data);
-                    updatePageInfo(page);
-                    fetchTotalPages(); // Gọi hàm fetchTotalPages để cập nhật tổng số trang
-                })
-                .catch(error => console.error('Error fetching data:', error));
-        }
-
+        document.getElementById('historyalarm').addEventListener('click', () => {
+            window.location.href = '/'; // 
+        });
 
         function fetchData(page) {
             const date = document.getElementById('dateFilter').value;
@@ -149,22 +125,9 @@
                 .then(data => {
                     renderTable(data);
                     updatePageInfo(page);
-                    fetchTotalPages(); // Gọi hàm fetchTotalPages để cập nhật tổng số trang
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
-
-        document.getElementById('sensorFilter').addEventListener('change', () => {
-            currentPage = 1; // Đặt lại trang hiện tại về 1
-            fetchData(currentPage);
-        });
-
-
-        document.getElementById('sensorFilter').addEventListener('change', () => {
-            currentPage = 1; // Đặt lại trang hiện tại về 1
-            fetchData(currentPage);
-        });
-
 
         function changePage(direction) {
             currentPage += direction;
@@ -190,10 +153,12 @@
                 let actionButton = '';
 
                 if (item.status === 'new') {
-                    actionButton = `<button class="confirm-button" onclick="updateStatusToPending(${item.id})">Xác nhận</button>`;
+                    actionButton = `<button class="confirm-button" onclick="updateStatusToPending(${item.id})">Confirm</button>`;
                 } else if (item.status === 'done') {
-                    actionButton = `<button onclick="updateStatusToHide(${item.id})">Xác nhận</button>`;
+                    actionButton = `<button onclick="updateStatusToHide(${item.id})">Confirm</button>`;
                 }
+
+                const historyButton = `<button onclick="window.location.href='/historydpm?sensor=${encodeURIComponent(item.sensor)}'">History</button>`;
 
                 let statusClass = '';
                 switch (item.status) {
@@ -208,7 +173,7 @@
                         break;
                 }
 
-                row.className = statusClass; // Set class for the entire row
+                row.className = statusClass;
 
                 row.innerHTML = `
                     <td>${item.sensor}</td>
@@ -218,7 +183,7 @@
                     <td>${item.priority}</td>
                     <td>${item.message}</td>
                     <td>${formattedTimestamp}</td>
-                    <td>${actionButton}</td>
+                    <td>${actionButton} ${historyButton}</td>
                 `;
                 dataBody.appendChild(row);
             });
@@ -231,7 +196,7 @@
                 .then(response => response.json())
                 .then(data => {
                     alert(data.message);
-                    fetchData(currentPage); // Cập nhật lại dữ liệu bảng
+                    fetchData(currentPage);
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -243,7 +208,7 @@
                 .then(response => response.json())
                 .then(data => {
                     alert(data.message);
-                    fetchData(currentPage); // Cập nhật lại dữ liệu bảng
+                    fetchData(currentPage);
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -251,7 +216,6 @@
         function filterData() {
             currentPage = 1;
             fetchData(currentPage);
-            fetchTotalPages();
         }
 
         function openExportModal() {
@@ -278,8 +242,6 @@
         }
 
         fetchData(currentPage);
-        fetchTotalPages();
-
         setInterval(() => {
             fetchData(currentPage);
         }, 5000);
