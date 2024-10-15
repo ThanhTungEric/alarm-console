@@ -245,35 +245,35 @@
         }
 
         function displayAlarmDetails(alarm) {
-            const alarmDetails = document.getElementById('alarmDetails');
-            const changeTimestamps = Array.isArray(alarm.change_timestamps)
-                ? alarm.change_timestamps.map(ts => {
-                    return typeof ts === 'object' ? JSON.parse(JSON.stringify(ts)) : ts;
-                })
-                : [alarm.change_timestamps]; // Đảm bảo là mảng
+    const alarmDetails = document.getElementById('alarmDetails');
+    const changeTimestamps = Array.isArray(alarm.change_timestamps)
+        ? alarm.change_timestamps
+        : [alarm.change_timestamps]; // Đảm bảo là mảng
 
-            // Tạo bảng cho Change Timestamps
-            const changeTimestampsTable = `
-    <table style="width: 100%; border-collapse: collapse; margin-left: 30px">
-        <thead>
-            <tr>
-                <th style="border: 1px solid black; padding: 8px;">State</th>
-                <th style="border: 1px solid black; padding: 8px;">Time</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${changeTimestamps.map(ts => {
-                const time = ts.time || ts.timestamp; // Lấy thời gian
-                const state = ts.state; // Lấy trạng thái
-                return `<tr><td style="border: 1px solid black; padding: 8px;">${state}</td><td style="border: 1px solid black; padding: 8px;">${time}</td></tr>`;
-            }).join('')}
-        </tbody>
-    </table>
+    // Tạo bảng cho Change Timestamps
+    const changeTimestampsTable = `
+        <table style="width: 100%; border-collapse: collapse; margin-left: 30px">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid black; padding: 8px;">State</th>
+                    <th style="border: 1px solid black; padding: 8px;">Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${changeTimestamps.map(ts => {
+                    if (ts && (ts.time || ts.timestamp)) { // Kiểm tra null và thuộc tính
+                        const time = ts.time || ts.timestamp; // Lấy thời gian
+                        const state = ts.state || 'Unknown'; // Cung cấp giá trị mặc định nếu không có state
+                        return `<tr><td style="border: 1px solid black; padding: 8px;">${state}</td><td style="border: 1px solid black; padding: 8px;">${time}</td></tr>`;
+                    }
+                    return ''; // Trả về chuỗi rỗng nếu ts không hợp lệ
+                }).join('')}
+            </tbody>
+        </table>
     `;
 
-            alarmDetails.innerHTML = `
+    alarmDetails.innerHTML = `
         <div class="alarm-container">
-
             <div class="alarm-info">
                 <p><strong>Sensor:</strong> ${alarm.sensor}</p>
                 <p><strong>State:</strong> ${alarm.sensor_state}</p>
@@ -283,15 +283,16 @@
                 <p><strong>Message:</strong> ${alarm.message}</p>
                 <p><strong>Status:</strong> ${alarm.status}</p>
             </div>
-                        <div class="change-timestamps">
+            <div class="change-timestamps">
                 <p><strong>Change Timestamps:</strong></p>
                 ${changeTimestampsTable}
             </div>
         </div>
     `;
 
-            document.getElementById('alarmModal').style.display = 'block'; // Hiện modal
-        }
+    document.getElementById('alarmModal').style.display = 'block'; // Hiện modal
+}
+
 
         // Đóng modal khi nhấp vào nút đóng
         document.getElementById('closeAlarmModal').addEventListener('click', () => {
