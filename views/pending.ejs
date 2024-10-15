@@ -85,8 +85,8 @@
     </div>
 
     <script>
-        //const apiUrl = 'http://localhost:3008/api/sensor/pending';
-        const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending';
+        const apiUrl = `http://${'<%= appName %>'}:3008/api/sensor/pending`;
+        //const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending';
         let currentPage = 1;
 
         document.getElementById('filterBtn').addEventListener('click', filterData);

@@ -6,6 +6,8 @@ const path = require('path');
 const XLSX = require('xlsx');
 const moment = require('moment-timezone');
 const app = express();
+require('dotenv').config();
+
 const PORT = 3008;
 
 // Middleware
@@ -16,19 +18,19 @@ app.set('views', path.join(__dirname, 'views')); // Đường dẫn tới thư m
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Kết nối đến MySQL
-const db = mysql.createConnection({
-    host: '172.30.33.2',
-    user: 'homeassistant',
-    password: 'dcs123456',
-    database: 'homeassistant'
-});
-
 // const db = mysql.createConnection({
-//     host: 'localhost',
-//     user: 'root',
-//     password: '123456789',
+//     host: '172.30.33.2',
+//     user: 'homeassistant',
+//     password: 'dcs123456',
 //     database: 'homeassistant'
 // });
+
+const db = mysql.createConnection({
+    host: process.env.LOCAL_IP,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DATABASE
+});
 
 db.connect(err => {
     if (err) throw err;
@@ -348,10 +350,10 @@ app.get('/api/alarm/:id', (req, res) => {
 
 // Route để render trang chính
 app.get('/', (req, res) => {
-    res.render('index'); // Render file index.ejs
+    res.render('index', { appName: process.env.LOCAL_IP }); // Render file index.ejs
 });
 app.get('/pending', (req, res) => {
-    res.render('pending'); // Render file index.ejs
+    res.render('pending', { appName: process.env.LOCAL_IP }); // Render file index.ejs
 });
 
 app.get('/historydpm', (req, res) => {
@@ -368,14 +370,14 @@ app.get('/historydpm', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         // Render dữ liệu vào historydpm.ejs
-        res.render('historydpm', { sensor, data: results });
+        res.render('historydpm', { sensor, data: results } , { appName: process.env.LOCAL_IP });
     });
 });
 
 
 
 // Khởi động server
-app.listen(PORT, '192.168.2.150' ,() => {
+app.listen(PORT, process.env.LOCAL_IP ,() => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
 // app.listen(PORT, () => {
