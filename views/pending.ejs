@@ -158,7 +158,7 @@
                     actionButton = `<button onclick="updateStatusToHide(${item.id})">Confirm</button>`;
                 }
 
-                const historyButton = `<button onclick="window.location.href='/historydpm?sensor=${encodeURIComponent(item.sensor)}'">History</button>`;
+                const historyButton = `<button onclick="window.location.href='/historydetail?sensor=${encodeURIComponent(item.sensor)}'">History</button>`;
 
                 let statusClass = '';
                 switch (item.status) {

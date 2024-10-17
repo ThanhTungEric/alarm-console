@@ -305,7 +305,7 @@ app.get('/api/sensor/dpm', (req, res) => {
     const month = req.query.month;
     const sensor = req.query.sensor; // Thêm tham số sensor
 
-    let sql = 'SELECT * FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY'; // Lấy những bản ghi không có trạng thái hide và trong 30 ngày gần nhất
+    let sql = 'SELECT * FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY'; 
 
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
@@ -348,6 +348,69 @@ app.get('/api/alarm/:id', (req, res) => {
     });
 });
 
+// API để thêm hoặc cập nhật sensor
+app.post('/api/historyview', (req, res) => {
+    const { sensor } = req.body;
+
+    if (!sensor) {
+        return res.status(400).send('Sensor is required');
+    }
+
+    const currentTime = new Date();
+
+    // Kiểm tra xem sensor đã tồn tại chưa
+    const checkSql = 'SELECT * FROM historyview WHERE sensor = ?';
+    db.query(checkSql, [sensor], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        if (results.length === 0) {
+            // Nếu sensor chưa có, thêm mới
+            const insertSql = 'INSERT INTO historyview (sensor, timestamp) VALUES (?, ?)';
+            db.query(insertSql, [sensor, currentTime], (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                return res.status(201).json({ message: 'Sensor added successfully' });
+            });
+        } else {
+            // Nếu sensor đã có, cập nhật thời gian
+            const updateSql = 'UPDATE historyview SET timestamp = ? WHERE sensor = ?';
+            db.query(updateSql, [currentTime, sensor], (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                return res.status(200).json({ message: 'Sensor updated successfully' });
+            });
+        }
+    });
+});
+
+app.get('/api/latest-alarm', (req, res) => {
+    // Truy vấn sensor mới nhất từ bảng historyview
+    const latestSensorSql = 'SELECT sensor FROM historyview ORDER BY timestamp DESC LIMIT 1';
+    
+    db.query(latestSensorSql, (err, sensorResults) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Kiểm tra xem có kết quả không
+        if (sensorResults.length === 0) {
+            return res.status(404).json({ message: 'No sensors found' });
+        }
+
+        const latestSensor = sensorResults[0].sensor;
+
+        // Sử dụng sensor mới nhất để truy vấn dữ liệu từ bảng alarm
+        const alarmSql = 'SELECT * FROM alarm WHERE sensor = ? ORDER BY timestamp DESC';
+        db.query(alarmSql, [latestSensor], (err, alarmResults) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            // Render file onepage.ejs với dữ liệu
+            res.render('onpage', {
+                sensor: latestSensor,
+                data: alarmResults,
+                appName: process.env.LOCAL_IP
+            });
+        });
+    });
+});
+
+
 // Route để render trang chính
 app.get('/', (req, res) => {
     res.render('index', { appName: process.env.LOCAL_IP }); // Render file index.ejs
@@ -356,7 +419,7 @@ app.get('/pending', (req, res) => {
     res.render('pending', { appName: process.env.LOCAL_IP }); // Render file index.ejs
 });
 
-app.get('/historydpm', (req, res) => {
+app.get('/historydetail', (req, res) => {
     const sensor = req.query.sensor;
 
     // Kiểm tra xem sensor có được truyền không
@@ -370,11 +433,13 @@ app.get('/historydpm', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         // Render dữ liệu vào historydpm.ejs
-        res.render('historydpm', { sensor, data: results } , { appName: process.env.LOCAL_IP });
+        res.render('historydetail', { 
+            sensor, 
+            data: results, 
+            appName: process.env.LOCAL_IP // Chuyển appName vào cùng đối tượng
+        });
     });
 });
-
-
 
 // Khởi động server
 app.listen(PORT, process.env.LOCAL_IP ,() => {
