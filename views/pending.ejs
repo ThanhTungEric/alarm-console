@@ -34,6 +34,7 @@
                 </div>
             </div>
             <div class="filter-action">
+                <button id="confirmAll">Confirm All</button>
                 <button id="exportDateBtn">Export</button>
                 <button id="refreshBtn">Refresh</button>
                 <button id="historyalarm">History alarm</button>
@@ -94,6 +95,17 @@
         document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
         document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
         document.getElementById('closeModal').addEventListener('click', closeExportModal);
+        document.getElementById('confirmAll').addEventListener('click', () => {
+            fetch('/api/sensor/status/pending', {
+                method: 'PUT'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchData(currentPage);
+                })
+                .catch(error => console.error('Error:', error));
+        });
         document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
         document.getElementById('refreshBtn').addEventListener('click', () => {
             fetchData(currentPage);
@@ -107,6 +119,8 @@
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
             const sensor = document.getElementById('sensorFilter').value;
+            const statusElement = document.getElementById('statusFilter');
+            const status = statusElement ? statusElement.value : '';
 
             let url = `${apiUrl}?page=${page}`;
 
@@ -118,6 +132,9 @@
             }
             if (sensor) {
                 url += `&sensor=${sensor}`;
+            }
+            if (status) {
+                url += `&status=${status}`;
             }
 
             fetch(url)

@@ -30,7 +30,7 @@
                 </div>
             </div>
             <div class="filter-action">
-                <button id="exportDateBtn">Export</button>
+                <!-- <button id="exportDateBtn">Export</button> -->
                 <button id="refreshBtn">Refresh</button>
             </div>
         </div>
@@ -134,7 +134,7 @@
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
         document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
-        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
+        //document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
         document.getElementById('closeModal').addEventListener('click', closeExportModal);
         document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
         document.getElementById('refreshBtn').addEventListener('click', () => {

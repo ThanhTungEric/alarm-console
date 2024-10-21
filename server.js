@@ -55,6 +55,7 @@ app.post('/api/sensor', (req, res) => {
                 SET 
                     status = "new", 
                     timestamp = NOW(), 
+                    acknowledgment_state = "none",
                     change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
                 WHERE sensor = ?`;
 
@@ -106,9 +107,10 @@ app.get('/api/sensor', (req, res) => {
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
-    const sensor = req.query.sensor; // Thêm tham số sensor
+    const sensor = req.query.sensor;
+    const status = req.query.status; // Thêm tham số status
 
-    let sql = 'SELECT * FROM alarm WHERE 1=1'; // Bắt đầu với điều kiện true
+    let sql = 'SELECT * FROM alarm WHERE 1=1';
 
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
@@ -117,12 +119,16 @@ app.get('/api/sensor', (req, res) => {
     }
 
     if (sensor) {
-        sql += ' AND sensor = ?'; // Thêm điều kiện cho sensor
+        sql += ' AND sensor = ?';
+    }
+
+    if (status) {
+        sql += ' AND status = ?'; // Thêm điều kiện cho status
     }
 
     sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
 
-    const params = [date || month, sensor, limit, offset].filter(param => param !== undefined); // Lọc ra các tham số không có giá trị
+    const params = [date || month, sensor, status, limit, offset].filter(param => param !== undefined);
 
     db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -130,7 +136,6 @@ app.get('/api/sensor', (req, res) => {
         res.json(results);
     });
 });
-
 
 
 
@@ -200,28 +205,32 @@ app.get('/api/sensor/pending', (req, res) => {
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
-    const sensor = req.query.sensor; // Thêm tham số sensor
+    const sensor = req.query.sensor; 
+    const status = req.query.status; 
 
-    let sql = 'SELECT * FROM alarm WHERE status != "hide" AND timestamp >= NOW() - INTERVAL 30 DAY'; // Lấy những bản ghi không có trạng thái hide và trong 30 ngày gần nhất
+    let sql = 'SELECT * FROM alarm WHERE status != "hide" AND timestamp >= NOW() - INTERVAL 30 DAY'; 
+
+    const params = [];
 
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
-    } else if (month) {
+        params.push(date);
+    }
+    if (month) {
         sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        params.push(month);
     }
-
     if (sensor) {
-        sql += ' AND sensor = ?'; // Thêm điều kiện cho sensor
+        sql += ' AND sensor = ?'; 
+        params.push(sensor);
     }
-
-    // Thêm điều kiện lọc theo trạng thái
-    if (sensor === 'new' || sensor === 'pending' || sensor === 'done') {
+    if (status) { 
         sql += ' AND status = ?';
+        params.push(status);
     }
 
     sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-
-    const params = [date || month, sensor, sensor === 'new' || sensor === 'pending' || sensor === 'done' ? sensor : undefined, limit, offset].filter(param => param !== undefined); // Lọc ra các tham số không có giá trị
+    params.push(limit, offset); // Thêm limit và offset vào params
 
     db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -229,7 +238,6 @@ app.get('/api/sensor/pending', (req, res) => {
         res.json(results);
     });
 });
-
 
 // API chuyển trạng thái từ new sang pending
 app.put('/api/sensor/status/pending/:id', (req, res) => {
@@ -294,6 +302,22 @@ app.put('/api/sensor/status/hide/:id', (req, res) => {
     });
 });
 
+// chuyển tất cả trạng thái từ new sang pending
+app.put('/api/sensor/status/pending', (req, res) => {
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "pending", 
+            acknowledgment_state = "yes", 
+            timestamp = NOW(), 
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'pending')) 
+        WHERE status = "new"`;
+
+    db.query(sql, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Tất cả trạng thái đã được cập nhật thành "pending".' });
+    });
+});
 
 
 // lấy dnah sách theo sensor
