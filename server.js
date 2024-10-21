@@ -304,20 +304,48 @@ app.put('/api/sensor/status/hide/:id', (req, res) => {
 
 // chuyển tất cả trạng thái từ new sang pending
 app.put('/api/sensor/status/pending', (req, res) => {
-    const sql = `
-        UPDATE alarm 
-        SET 
-            status = "pending", 
-            acknowledgment_state = "yes", 
-            timestamp = NOW(), 
-            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'pending')) 
-        WHERE status = "new"`;
+    // Đầu tiên, kiểm tra xem có trạng thái "new" nào không
+    const checkNewStatusSql = 'SELECT COUNT(*) AS count FROM alarm WHERE status = "new"';
 
-    db.query(sql, (err, result) => {
+    db.query(checkNewStatusSql, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Tất cả trạng thái đã được cập nhật thành "pending".' });
+
+        const newCount = result[0].count;
+
+        if (newCount > 0) {
+            // Nếu còn trạng thái "new", cập nhật thành "pending"
+            const updatePendingSql = `
+                UPDATE alarm 
+                SET 
+                    status = "pending", 
+                    acknowledgment_state = "yes", 
+                    timestamp = NOW(), 
+                    change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'pending')) 
+                WHERE status = "new"`;
+
+            db.query(updatePendingSql, (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Tất cả trạng thái "new" đã được cập nhật thành "pending".' });
+            });
+        } else {
+            // Nếu không còn trạng thái "new", cập nhật thành "hide"
+            const updateHideSql = `
+                UPDATE alarm 
+                SET 
+                    status = "hide", 
+                    acknowledgment_state = "no", 
+                    timestamp = NOW(), 
+                    change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'hide')) 
+                WHERE status != "hide"`;
+
+            db.query(updateHideSql, (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Tất cả trạng thái đã được cập nhật thành "hide".' });
+            });
+        }
     });
 });
+
 
 
 // lấy dnah sách theo sensor
