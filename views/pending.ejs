@@ -23,12 +23,13 @@
             <div class="filter-input">
                 <input type="date" id="dateFilter" placeholder="Filter by date">
                 <input type="month" id="monthFilter" placeholder="Filter by month">
-                <select id="sensorFilter">
-                    <option value="">All status</option>
+                <select id="statusFilter"> <!-- Đổi tên thành statusFilter -->
+                    <option value="">All statuses</option>
                     <option value="new">New</option>
                     <option value="pending">Pending</option>
                     <option value="done">Reconnect</option>
                 </select>
+
                 <div class="filter-btn">
                     <button id="filterBtn">Filter</button>
                 </div>
@@ -62,7 +63,7 @@
             <div class="note"></div>
             <div class="pagination">
                 <button id="prevPageBtn">Previous</button>
-                <span id="pageInfo"></span>
+                <span id="pageInfo"></span> <span id="onTotal">/</span> <span id="totalPagesInfo"></span>
                 <button id="nextPageBtn">Next</button>
             </div>
             <div class="note"></div>
@@ -90,7 +91,7 @@
         const apiUrl = `http://${'<%= appName %>'}:3008/api/sensor/pending`;
         //const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending';
         let currentPage = 1;
-
+        let totalPages = 0; // Biến để lưu tổng số trang
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
         document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
@@ -119,10 +120,9 @@
         function fetchData(page) {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
-            const sensor = document.getElementById('sensorFilter').value;
-            const statusElement = document.getElementById('statusFilter');
-            const status = statusElement ? statusElement.value : '';
-
+            //const sensor = document.getElementById('sensorFilter').value; // Giữ nguyên nếu đây là bộ lọc cảm biến
+            const status = document.getElementById('statusFilter').value; // Lấy giá trị từ statusFilter
+            console.log(status);
             let url = `${apiUrl}?page=${page}`;
 
             if (date) {
@@ -131,10 +131,7 @@
             if (month) {
                 url += `&month=${month}`;
             }
-            if (sensor) {
-                url += `&sensor=${sensor}`;
-            }
-            if (status) {
+            if (status) { // Thêm trạng thái vào URL
                 url += `&status=${status}`;
             }
 
@@ -143,9 +140,37 @@
                 .then(data => {
                     renderTable(data);
                     updatePageInfo(page);
+                    fetchTotalPages(); // Cập nhật tổng số trang
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
+
+
+
+        function fetchTotalPages() {
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+
+            let url = `${apiUrl}/count`;
+
+            if (date) {
+                url += `?date=${date}`;
+            }
+            if (month) {
+                url += `?month=${month}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const totalRecords = data.total || 0; // Đảm bảo totalRecords không phải là NaN
+                    totalPages = Math.ceil(totalRecords / 15); // Giả sử mỗi trang có 15 bản ghi
+                    document.getElementById('totalPagesInfo').textContent = totalPages; // Cập nhật tổng số trang
+                    checkPagination();
+                })
+                .catch(error => console.error('Error fetching total pages:', error));
+        }
+
 
         function changePage(direction) {
             currentPage += direction;
@@ -159,6 +184,7 @@
 
         function updatePageInfo(page) {
             document.getElementById('pageInfo').textContent = `Page ${page}`;
+            fetchTotalPages();
         }
 
         function renderTable(data) {
@@ -234,6 +260,7 @@
         function filterData() {
             currentPage = 1;
             fetchData(currentPage);
+            fetchTotalPages();
         }
 
         function openExportModal() {
@@ -249,9 +276,9 @@
             const month = document.getElementById('exportMonth').value;
 
             if (date) {
-                window.open(`${apiUrl}/date?date=${date}`);
+                window.open(`${apiUrl}/export?date=${date}`);
             } else if (month) {
-                window.open(`${apiUrl}/month?month=${month}`);
+                window.open(`${apiUrl}/export?month=${month}`);
             } else {
                 alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
             }
@@ -259,9 +286,11 @@
             closeExportModal();
         }
 
+
         fetchData(currentPage);
         setInterval(() => {
             fetchData(currentPage);
+            fetchTotalPages();
         }, 5000);
 
         window.onclick = function (event) {

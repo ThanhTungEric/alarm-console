@@ -99,6 +99,12 @@ th {
 #pageInfo {
     align-self: center;
 }
+#onTotal{
+    align-self: center;
+}
+#totalPagesInfo{
+    align-self: center;
+}
 
 #historyalarm{
     margin-left: 10px;

@@ -97,6 +97,13 @@ th {
     align-self: center;
 }
 
+#totalPagesInfo {
+    align-self: center;
+}
+#totalPagesInfoo {
+    align-self: center;
+}
+
 .modal {
     display: none; /* Ẩn modal theo mặc định */
     position: fixed;

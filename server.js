@@ -77,10 +77,6 @@ app.post('/api/sensor', (req, res) => {
     });
 });
 
-
-
-
-
 // API để lấy tổng số bản ghi
 app.get('/api/sensor/count', (req, res) => {
     const date = req.query.date;
@@ -88,22 +84,23 @@ app.get('/api/sensor/count', (req, res) => {
     let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY';
 
     if (date) {
-        sql += ' WHERE DATE(timestamp) = ?';
+        sql += ' AND DATE(timestamp) = ?';
     } else if (month) {
-        sql += ' WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
     }
 
     db.query(sql, [date || month], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ total: results[0].total });
+        res.json({ total: results[0]?.total || 0 }); // Trả về 0 nếu không có kết quả
     });
 });
+
 
 // API đọc dữ liệu với phân trang
 // API đọc dữ liệu với phân trang và lọc theo ngày/tháng
 app.get('/api/sensor', (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 15;
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
@@ -139,12 +136,30 @@ app.get('/api/sensor', (req, res) => {
 
 
 
-// API đọc dữ liệu theo ngày
-app.get('/api/sensor/date', (req, res) => {
-    const date = req.query.date;
-    const sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ?';
+app.get('/api/sensor/export', (req, res) => {
+    const date = req.query.date; // Ngày
+    const month = req.query.month; // Tháng
 
-    db.query(sql, [date], (err, results) => {
+    let sql;
+    let params = [];
+
+    if (date && !month) {
+        // Xuất theo ngày
+        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ?';
+        params.push(date);
+    } else if (!date && month) {
+        // Xuất theo tháng
+        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        params.push(month);
+    } else if (date && month) {
+        // Xuất theo tháng (ngày sẽ được bỏ qua)
+        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        params.push(month);
+    } else {
+        return res.status(400).json({ error: 'Either date or month must be provided.' });
+    }
+
+    db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
 
         // Tạo workbook và worksheet
@@ -156,7 +171,8 @@ app.get('/api/sensor/date', (req, res) => {
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
 
         // Ghi file Excel
-        const filePath = `alarm_${date}.xlsx`;
+        const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
+        const filePath = fileName;
         XLSX.writeFile(workbook, filePath);
 
         // Gửi file cho client
@@ -168,40 +184,12 @@ app.get('/api/sensor/date', (req, res) => {
     });
 });
 
-// API đọc dữ liệu theo tháng
-app.get('/api/sensor/month', (req, res) => {
-    const month = req.query.month;
-    const sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
-
-    db.query(sql, [month], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        // Tạo workbook và worksheet
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(results.map(row => ({
-            ...row,
-            timestamp: row.formatted_timestamp // Thay đổi tên cột nếu cần
-        })));
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
-
-        // Ghi file Excel
-        const filePath = `alarm_${month}.xlsx`;
-        XLSX.writeFile(workbook, filePath);
-
-        // Gửi file cho client
-        res.download(filePath, err => {
-            if (err) {
-                res.status(500).send({ error: 'Error downloading file' });
-            }
-        });
-    });
-});
 
 ////// status alarm --------------------------------------------------------------------------------------------
 // API đọc dữ liệu với phân trang và lọc theo ngày/tháng, chỉ lấy trạng thái pending
 app.get('/api/sensor/pending', (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 15;
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
@@ -220,10 +208,6 @@ app.get('/api/sensor/pending', (req, res) => {
         sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
     }
-    if (sensor) {
-        sql += ' AND sensor = ?'; 
-        params.push(sensor);
-    }
     if (status) { 
         sql += ' AND status = ?';
         params.push(status);
@@ -238,6 +222,105 @@ app.get('/api/sensor/pending', (req, res) => {
         res.json(results);
     });
 });
+
+//export pending by date or month where stauts different hide
+app.get('/api/sensor/pending/export', (req, res) => {
+    const date = req.query.date; 
+    const month = req.query.month; 
+
+    let sql;
+    let params = [];
+
+    if (date && !month) {
+        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ? AND status != "hide"';
+        params.push(date);
+    } else if (!date && month) {
+        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
+        params.push(month);
+    } else if (date && month) {
+        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
+        params.push(month);
+    } else {
+        return res.status(400).json({ error: 'Either date or month must be provided.' });
+    }
+
+    db.query(sql, params, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const formattedResults = results.map(row => {
+            const changeTimestamps = row.change_timestamps; 
+            // Khởi tạo các mảng để lưu thời gian cho từng trạng thái
+            const newTimes = [];
+            const pendingTimes = [];
+            const hideTimes = [];
+            const doneTimes = [];
+
+            // Lưu thời gian cho từng trạng thái
+           
+            changeTimestamps.forEach(item => {
+                const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
+                switch (item.state) {
+                    case 'new':
+                        newTimes.push(formattedTime);
+                        break;
+                    case 'pending':
+                        pendingTimes.push(formattedTime);
+                        break;
+                    case 'done':
+                        doneTimes.push(formattedTime);
+                        break;
+                    case 'hide':
+                        hideTimes.push(formattedTime);
+                        break;
+                }
+            });
+            return {
+                ...row,
+                timestamp: row.formatted_timestamp,
+                newTimes: newTimes.join(', '),
+                pendingTimes: pendingTimes.join(', '),
+                hideTimes: hideTimes.join(', '),
+                doneTimes: doneTimes.join(', ')
+            };
+
+        });
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(formattedResults);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
+
+        const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
+        const filePath = fileName;
+        XLSX.writeFile(workbook, filePath);
+
+        res.download(filePath, err => {
+            if (err) {
+                res.status(500).send({ error: 'Error downloading file' });
+            }
+        });
+    });
+});
+
+
+
+//count pending by date or month where stauts different hide
+app.get('/api/sensor/pending/count', (req, res) => {
+    const date = req.query.date;
+    const month = req.query.month;
+    let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status != "hide"';
+
+    if (date) {
+        sql += ' AND DATE(timestamp) = ?';
+    } else if (month) {
+        sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
+    }
+
+    db.query(sql, [date || month], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ total: results[0]?.total || 0 });
+    });
+});
+
+
 
 // API chuyển trạng thái từ new sang pending
 app.put('/api/sensor/status/pending/:id', (req, res) => {
@@ -351,7 +434,7 @@ app.put('/api/sensor/status/pending', (req, res) => {
 // lấy dnah sách theo sensor
 app.get('/api/sensor/dpm', (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 15;
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
