@@ -150,15 +150,20 @@
         function fetchTotalPages() {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
+            const status = document.getElementById('statusFilter').value; // Lấy giá trị từ statusFilter
 
             let url = `${apiUrl}/count`;
 
+            if (status) { // Thêm trạng thái vào URL
+                url += `?status=${status}`;
+            }
             if (date) {
                 url += `?date=${date}`;
             }
             if (month) {
                 url += `?month=${month}`;
             }
+
 
             fetch(url)
                 .then(response => response.json())

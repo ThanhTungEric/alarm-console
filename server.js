@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const XLSX = require('xlsx');
+const fs = require('fs');
 const moment = require('moment-timezone');
 const app = express();
 require('dotenv').config();
@@ -162,17 +163,56 @@ app.get('/api/sensor/export', (req, res) => {
     db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
 
+        const formattedResults = results.map(row => {
+            const changeTimestamps = row.change_timestamps; 
+            // Khởi tạo các mảng để lưu thời gian cho từng trạng thái
+            const newTimes = [];
+            const pendingTimes = [];
+            const hideTimes = [];
+            const doneTimes = [];
+
+            // Lưu thời gian cho từng trạng thái
+            changeTimestamps.forEach(item => {
+                const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
+                switch (item.state) {
+                    case 'new':
+                        newTimes.push(formattedTime);
+                        break;
+                    case 'pending':
+                        pendingTimes.push(formattedTime);
+                        break;
+                    case 'done':
+                        doneTimes.push(formattedTime);
+                        break;
+                    case 'hide':
+                        hideTimes.push(formattedTime);
+                        break;
+                }
+            });
+
+            return {
+                ...row,
+                timestamp: row.formatted_timestamp,
+                newTimes: newTimes.join(', '),
+                pendingTimes: pendingTimes.join(', '),
+                hideTimes: hideTimes.join(', '),
+                doneTimes: doneTimes.join(', ')
+            };
+        });
+
         // Tạo workbook và worksheet
         const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(results.map(row => ({
-            ...row,
-            timestamp: row.formatted_timestamp // Thay đổi tên cột nếu cần
-        })));
+        const worksheet = XLSX.utils.json_to_sheet(formattedResults);
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
 
         // Ghi file Excel
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
         const filePath = fileName;
+
+        // kiểm tra có file đó chưa nếu có thì xóa
+        if (fs.existsSync(filePath))
+            fs.unlinkSync(filePath);
+
         XLSX.writeFile(workbook, filePath);
 
         // Gửi file cho client
@@ -290,6 +330,11 @@ app.get('/api/sensor/pending/export', (req, res) => {
 
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
         const filePath = fileName;
+
+        // kiểm tra có file đó chưa nếu có thì xóa
+        if (fs.existsSync(filePath))
+            fs.unlinkSync(filePath);
+
         XLSX.writeFile(workbook, filePath);
 
         res.download(filePath, err => {
@@ -306,19 +351,32 @@ app.get('/api/sensor/pending/export', (req, res) => {
 app.get('/api/sensor/pending/count', (req, res) => {
     const date = req.query.date;
     const month = req.query.month;
+    const status = req.query.status; // Lấy status từ query
     let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status != "hide"';
 
+    
+    if (status) {
+        sql += ' AND status = ?'; // Thêm điều kiện cho status
+    }
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
     } else if (month) {
         sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
     }
 
-    db.query(sql, [date || month], (err, results) => {
+
+    // Tạo mảng params để truyền vào query
+    const params = [date || month];
+    if (status) {
+        params.push(status);
+    }
+
+    db.query(sql, params, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ total: results[0]?.total || 0 });
     });
 });
+
 
 
 
