@@ -207,7 +207,7 @@ app.get('/api/sensor/export', (req, res) => {
 
         // Ghi file Excel
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
-        const filePath = fileName;
+        const filePath = path.join(__dirname, 'export', fileName);
 
         // kiểm tra có file đó chưa nếu có thì xóa
         if (fs.existsSync(filePath))
@@ -329,7 +329,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
 
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
-        const filePath = fileName;
+        const filePath = path.join(__dirname, 'export', fileName);
 
         // kiểm tra có file đó chưa nếu có thì xóa
         if (fs.existsSync(filePath))
