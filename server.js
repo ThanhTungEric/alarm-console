@@ -164,13 +164,12 @@ app.get('/api/sensor/export', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         const formattedResults = results.map(row => {
-            const changeTimestamps = row.change_timestamps; 
-            // Khởi tạo các mảng để lưu thời gian cho từng trạng thái
+            const changeTimestamps = row.change_timestamps || []; // Khởi tạo thành mảng rỗng nếu null
             const newTimes = [];
             const pendingTimes = [];
             const hideTimes = [];
             const doneTimes = [];
-
+        
             // Lưu thời gian cho từng trạng thái
             changeTimestamps.forEach(item => {
                 const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
@@ -189,7 +188,7 @@ app.get('/api/sensor/export', (req, res) => {
                         break;
                 }
             });
-
+        
             return {
                 ...row,
                 timestamp: row.formatted_timestamp,
@@ -198,7 +197,7 @@ app.get('/api/sensor/export', (req, res) => {
                 hideTimes: hideTimes.join(', '),
                 doneTimes: doneTimes.join(', ')
             };
-        });
+        });        
 
         // Tạo workbook và worksheet
         const workbook = XLSX.utils.book_new();
