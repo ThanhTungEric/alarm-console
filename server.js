@@ -171,23 +171,25 @@ app.get('/api/sensor/export', (req, res) => {
             const doneTimes = [];
         
             // Lưu thời gian cho từng trạng thái
-            changeTimestamps.forEach(item => {
-                const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
-                switch (item.state) {
-                    case 'new':
-                        newTimes.push(formattedTime);
-                        break;
-                    case 'pending':
-                        pendingTimes.push(formattedTime);
-                        break;
-                    case 'done':
-                        doneTimes.push(formattedTime);
-                        break;
-                    case 'hide':
-                        hideTimes.push(formattedTime);
-                        break;
-                }
-            });
+            if (Array.isArray(changeTimestamps) && changeTimestamps.length > 0) {
+                changeTimestamps.forEach(item => {
+                    const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
+                    switch (item.state) {
+                        case 'new':
+                            newTimes.push(formattedTime);
+                            break;
+                        case 'pending':
+                            pendingTimes.push(formattedTime);
+                            break;
+                        case 'done':
+                            doneTimes.push(formattedTime);
+                            break;
+                        case 'hide':
+                            hideTimes.push(formattedTime);
+                            break;
+                    }
+                });
+            }
         
             return {
                 ...row,
@@ -295,7 +297,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
             const doneTimes = [];
 
             // Lưu thời gian cho từng trạng thái
-           
+           console.log("befor",changeTimestamps);
             changeTimestamps.forEach(item => {
                 const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
                 switch (item.state) {
@@ -313,6 +315,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
                         break;
                 }
             });
+            console.log("new time",newTimes);
             return {
                 ...row,
                 timestamp: row.formatted_timestamp,
