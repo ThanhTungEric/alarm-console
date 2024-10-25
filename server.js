@@ -351,6 +351,19 @@ app.get('/api/sensor/pending/export', (req, res) => {
     });
 });
 
+//count stutatus khác hide và status = hide
+app.get('/api/sensor/status/count', (req, res) => {
+    let sqlpending = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status != "hide"';
+    let sqlhide = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status = "hide"';
+    db.query(sqlpending, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        db.query(sqlhide, (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ totalpending: results[0]?.total || 0, totalhide: result[0]?.total || 0 });
+        });
+    });
+});
+    
 
 
 //count pending by date or month where stauts different hide
