@@ -43,29 +43,33 @@ db.connect(err => {
 app.post('/api/sensor', (req, res) => {
     const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
 
-    // Kiểm tra xem có bản ghi nào với sensor có status là 'new', 'pending' hoặc 'done'
-    const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND (status = "new" OR status = "pending" OR status = "done")';
+    // Kiểm tra xem có bản ghi nào với sensor và trạng thái 'new', 'pending', hoặc 'done'
+    const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND status IN ("new", "pending", "done")';
 
     db.query(checkSql, [sensor], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
 
         if (results.length > 0) {
-            // Nếu có bản ghi, cập nhật tất cả trạng thái thành 'new' và thêm vào change_timestamps
+            // Nếu có bản ghi, cập nhật trạng thái thành 'new' và thay đổi các cột khác theo yêu cầu
             const updateSql = `
                 UPDATE alarm 
                 SET 
-                    status = "new", 
-                    timestamp = NOW(), 
+                    sensor_state = ?, 
                     acknowledgment_state = "none",
+                    alarm_class = ?, 
+                    priority = ?, 
+                    message = ?, 
+                    status = "new", 
+                    timestamp = NOW(),
                     change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
-                WHERE sensor = ?`;
+                WHERE sensor = ? AND status IN ("new", "pending", "done")`;
 
-            db.query(updateSql, [sensor], (err, result) => {
+            db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Tất cả trạng thái đã được cập nhật thành "new".' });
+                res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
             });
         } else {
-            // Nếu không có bản ghi, chèn bản ghi mới với change_timestamps chứa thời gian và trạng thái là 'new'
+            // Nếu không có bản ghi phù hợp, thêm một bản ghi mới
             const insertSql = `
                 INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
@@ -77,6 +81,7 @@ app.post('/api/sensor', (req, res) => {
         }
     });
 });
+
 
 // API để lấy tổng số bản ghi
 app.get('/api/sensor/count', (req, res) => {
@@ -234,7 +239,6 @@ app.get('/api/sensor/pending', (req, res) => {
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
-    const sensor = req.query.sensor; 
     const status = req.query.status; 
 
     let sql = 'SELECT * FROM alarm WHERE status != "hide" AND timestamp >= NOW() - INTERVAL 30 DAY'; 
