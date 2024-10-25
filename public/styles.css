@@ -195,6 +195,7 @@ th {
 
 #exportDateBtn {
     margin-right: 10px;
+    margin-left: 10px;
 }
 #gotoalarm {
     margin-left: 10px;
@@ -202,7 +203,7 @@ th {
 
 .logo-left,
 .logo-right {
-    width: 100px;
+    width: 160px;
     height: 100px;
 }
 

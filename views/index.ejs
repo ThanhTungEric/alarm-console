@@ -11,7 +11,7 @@
 <body>
     <div class="container">
         <div class="header-container">
-            <div class="logo-left"></div>
+            <div class="logo-left"><p  id="alarmStatus">Alarm: 0 / Normal: 0</p></div>
             <h1>HISTORY ALARM</h1>
             <div class="logo-right">
                 <img src="https://static.ybox.vn/2022/5/2/1653386529734-nguyen-hong-minh201866kj-avatar.png"
@@ -121,8 +121,10 @@
                     renderTable(data);
                     updatePageInfo(page);
                     checkPagination();
+                    fetchAlarmStatus();
                 });
         }
+
 
         function fetchTotalPages() {
             const date = document.getElementById('dateFilter').value;
@@ -153,6 +155,16 @@
         }
 
 
+        function fetchAlarmStatus() {
+            fetch(`${apiUrl}/status/count`)
+                .then(response => response.json())
+                .then(data => {
+                    const totalPending = data.totalpending || 0;
+                    const totalHide = data.totalhide || 0;
+                    document.getElementById('alarmStatus').innerText = `Alarm: ${totalPending} / Normal: ${totalHide}`;
+                })
+                .catch(error => console.error('Error fetching alarm status:', error));
+        }
 
         function changePage(direction) {
             currentPage += direction;
