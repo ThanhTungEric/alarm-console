@@ -365,7 +365,7 @@ app.get('/api/sensor/status/count', (req, res) => {
 });
 
 app.get('/api/sensor/status/count/new', (req, res) => {
-    let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status != "hide"';
+    let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status = "new"';
     db.query(sql, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ totalpending: results[0]?.total || 0 });
