@@ -308,20 +308,25 @@ app.get('/api/sensor/pending/export', (req, res) => {
             // Lưu thời gian cho từng trạng thái
            console.log("befor",changeTimestamps);
             changeTimestamps.forEach(item => {
-                const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
-                switch (item.state) {
-                    case 'new':
-                        newTimes.push(formattedTime);
-                        break;
-                    case 'pending':
-                        pendingTimes.push(formattedTime);
-                        break;
-                    case 'done':
-                        doneTimes.push(formattedTime);
-                        break;
-                    case 'hide':
-                        hideTimes.push(formattedTime);
-                        break;
+                try {
+                    const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
+                    switch (item.state) {
+                        case 'new':
+                            newTimes.push(formattedTime);
+                            break;
+                        case 'pending':
+                            pendingTimes.push(formattedTime);
+                            break;
+                        case 'done':
+                            doneTimes.push(formattedTime);
+                            break;
+                        case 'hide':
+                            hideTimes.push(formattedTime);
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Error processing changeTimestamp item:', error.message);
+                    // Bỏ qua lỗi và tiếp tục xử lý các item khác
                 }
             });
             console.log("new time",newTimes);
