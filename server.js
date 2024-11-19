@@ -270,6 +270,7 @@ app.get('/api/sensor/pending', (req, res) => {
 });
 
 // Export pending by date or month where status different hide
+// Export pending by date or month where status different hide
 app.get('/api/sensor/pending/export', (req, res) => {
     const date = req.query.date; 
     const month = req.query.month; 
@@ -278,13 +279,13 @@ app.get('/api/sensor/pending/export', (req, res) => {
     let params = [];
 
     if (date && !month) {
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ? AND status != "hide"';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE(timestamp) = ? AND status != "hide"';
         params.push(date);
     } else if (!date && month) {
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
         params.push(month);
     } else if (date && month) {
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
         params.push(month);
     } else {
         return res.status(400).json({ error: 'Either date or month must be provided.' });
@@ -294,9 +295,47 @@ app.get('/api/sensor/pending/export', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         const formattedResults = results.map(row => {
+            // Phân tích dữ liệu change_timestamps
+            let timestamps = [];
+            if (typeof row.change_timestamps === 'string') {
+                try {
+                    timestamps = JSON.parse(row.change_timestamps);
+                    
+                } catch (e) {
+                    console.error("Error parsing change_timestamps:", e);
+                }
+            } else if (Array.isArray(row.change_timestamps)) {
+                timestamps = row.change_timestamps;
+            }
+
+            // Khởi tạo các giá trị cho các trạng thái
+            let newTime = '', pendingTime = '', doneTime = '', hideTime = '';
+
+            // Duyệt qua các trạng thái để lấy thời gian
+            timestamps.forEach(item => {
+                switch (item.state) {
+                    case 'new':
+                        if (!newTime) newTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                    case 'pending':
+                        if (!pendingTime) pendingTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                    case 'done':
+                        if (!doneTime) doneTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                    case 'hide':
+                        if (!hideTime) hideTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                }
+            });
+
             return {
                 ...row,
                 timestamp: row.formatted_timestamp,
+                new_time: newTime,
+                pending_time: pendingTime,
+                done_time: doneTime,
+                hide_time: hideTime,
             };
         });
 
@@ -309,7 +348,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
         // Đặt tên file và kiểu nội dung
-        const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
+        const fileName = date ? `pending_alarm_${date}.xlsx` : `pending_alarm_${month}.xlsx`;
         res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
@@ -317,6 +356,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
         res.send(buffer);
     });
 });
+
 
 
 
