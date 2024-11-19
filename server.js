@@ -150,15 +150,15 @@ app.get('/api/sensor/export', (req, res) => {
 
     if (date && !month) {
         // Xuất theo ngày
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ?';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE(timestamp) = ?';
         params.push(date);
     } else if (!date && month) {
         // Xuất theo tháng
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
     } else if (date && month) {
         // Xuất theo tháng (ngày sẽ được bỏ qua)
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
     } else {
         return res.status(400).json({ error: 'Either date or month must be provided.' });
@@ -168,9 +168,47 @@ app.get('/api/sensor/export', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         const formattedResults = results.map(row => {
+            // Phân tích dữ liệu change_timestamps
+            let timestamps = [];
+            if (typeof row.change_timestamps === 'string') {
+                try {
+                    timestamps = JSON.parse(row.change_timestamps);
+                } catch (e) {
+                    console.error("Error parsing change_timestamps:", e);
+                }
+            } else if (Array.isArray(row.change_timestamps)) {
+                // Nếu change_timestamps là một mảng đối tượng, sử dụng nó trực tiếp
+                timestamps = row.change_timestamps;
+            }
+
+            // Khởi tạo các giá trị cho các trạng thái
+            let newTime = '', pendingTime = '', doneTime = '', hideTime = '';
+
+            // Duyệt qua các trạng thái để lấy thời gian
+            timestamps.forEach(item => {
+                switch (item.state) {
+                    case 'new':
+                        if (!newTime) newTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                    case 'pending':
+                        if (!pendingTime) pendingTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                    case 'done':
+                        if (!doneTime) doneTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                    case 'hide':
+                        if (!hideTime) hideTime = item.time; // Chỉ lấy lần đầu tiên
+                        break;
+                }
+            });
+
             return {
                 ...row,
                 timestamp: row.formatted_timestamp,
+                new_time: newTime,
+                pending_time: pendingTime,
+                done_time: doneTime,
+                hide_time: hideTime,
             };
         });
 
