@@ -92,6 +92,22 @@
                 <button id="nextPageBtn">Next</button>
             </div>
         </div>
+        <div id="exportModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span class="close" id="closeModal">&times;</span>
+                </div>
+                <div class="export-date">
+                    <label for="exportDate">Select date:</label>
+                    <input type="date" id="exportDate">
+                </div>
+                <div class="export-month">
+                    <label for="exportMonth">Select month:</label>
+                    <input type="month" id="exportMonth">
+                </div>
+                <button id="confirmExportBtn">Export</button>
+            </div>
+        </div>
 
     </div>
 
@@ -104,9 +120,34 @@
         document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
         document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
         document.getElementById('refreshBtn').addEventListener('click', () => fetchData(currentPage));
+        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
+        document.getElementById('closeModal').addEventListener('click', closeExportModal);
+        document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
         document.getElementById('gotoalarm').addEventListener('click', () => {
             window.location.href = '/pending';
         });
+        function openExportModal() {
+            document.getElementById('exportModal').style.display = 'block';
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function confirmExport() {
+            const date = document.getElementById('exportDate').value;
+            const month = document.getElementById('exportMonth').value;
+
+            if (date) {
+                window.open(`${apiUrl}/export?date=${date}`);
+            } else if (month) {
+                window.open(`${apiUrl}/export?month=${month}`);
+            } else {
+                alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
+            }
+
+            closeExportModal();
+        }
 
         function fetchData(page) {
             const date = document.getElementById('dateFilter').value;
@@ -271,6 +312,12 @@
 
         fetchData(currentPage);
         fetchTotalPages();
+        window.onclick = function (event) {
+            const modal = document.getElementById('exportModal');
+            if (event.target === modal) {
+                closeExportModal();
+            }
+        }
     </script>
 </body>
 

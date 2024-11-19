@@ -50,7 +50,7 @@ app.post('/api/sensor', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         if (results.length > 0) {
-            // Nếu có bản ghi, cập nhật trạng thái thành 'new' và thay đổi các cột khác theo yêu cầu
+            // Nếu có bản ghi, cập nhật trạng thái thành 'new' và xóa change_timestamps cũ
             const updateSql = `
                 UPDATE alarm 
                 SET 
@@ -61,7 +61,7 @@ app.post('/api/sensor', (req, res) => {
                     message = ?, 
                     status = "new", 
                     timestamp = NOW(),
-                    change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
+                    change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')) 
                 WHERE sensor = ? AND status IN ("new", "pending", "done")`;
 
             db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
@@ -81,7 +81,6 @@ app.post('/api/sensor', (req, res) => {
         }
     });
 });
-
 
 // API để lấy tổng số bản ghi
 app.get('/api/sensor/count', (req, res) => {
@@ -151,15 +150,15 @@ app.get('/api/sensor/export', (req, res) => {
 
     if (date && !month) {
         // Xuất theo ngày
-        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ?';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ?';
         params.push(date);
     } else if (!date && month) {
         // Xuất theo tháng
-        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
     } else if (date && month) {
         // Xuất theo tháng (ngày sẽ được bỏ qua)
-        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
     } else {
         return res.status(400).json({ error: 'Either date or month must be provided.' });
@@ -169,47 +168,11 @@ app.get('/api/sensor/export', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         const formattedResults = results.map(row => {
-            const changeTimestamps = row.change_timestamps || []; // Khởi tạo thành mảng rỗng nếu null
-            const newTimes = [];
-            const pendingTimes = [];
-            const hideTimes = [];
-            const doneTimes = [];
-        
-            // Lưu thời gian cho từng trạng thái
-            if (Array.isArray(changeTimestamps) && changeTimestamps.length > 0) {
-                changeTimestamps.forEach(item => {
-                    try {
-                        const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
-                        switch (item.state) {
-                            case 'new':
-                                newTimes.push(formattedTime);
-                                break;
-                            case 'pending':
-                                pendingTimes.push(formattedTime);
-                                break;
-                            case 'done':
-                                doneTimes.push(formattedTime);
-                                break;
-                            case 'hide':
-                                hideTimes.push(formattedTime);
-                                break;
-                        }
-                    } catch (error) {
-                        console.error('Error processing changeTimestamp item:', error.message);
-                        // Bỏ qua lỗi và tiếp tục xử lý các item khác
-                    }
-                });
-            }
-        
             return {
                 ...row,
                 timestamp: row.formatted_timestamp,
-                newTimes: newTimes.join(', '),
-                pendingTimes: pendingTimes.join(', '),
-                hideTimes: hideTimes.join(', '),
-                doneTimes: doneTimes.join(', ')
             };
-        });        
+        });
 
         // Tạo workbook và worksheet
         const workbook = XLSX.utils.book_new();
@@ -220,7 +183,7 @@ app.get('/api/sensor/export', (req, res) => {
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
         const filePath = path.join(__dirname, 'export', fileName);
 
-        // kiểm tra có file đó chưa nếu có thì xóa
+        // Kiểm tra có file đó chưa nếu có thì xóa
         if (fs.existsSync(filePath))
             fs.unlinkSync(filePath);
 
