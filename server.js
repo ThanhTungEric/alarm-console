@@ -64,16 +64,9 @@ app.post('/api/sensor', (req, res) => {
                     change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
                 WHERE sensor = ? AND status IN ("new", "pending", "done")`;
 
-            // Cập nhật thời gian mới mà không thêm một trạng thái mới vào mảng
-            const updateChangeTimestampsSql = `
-                UPDATE alarm 
-                SET 
-                    change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
-                WHERE sensor = ? AND status IN ("new", "pending", "done")`;
-
-            db.query(updateChangeTimestampsSql, [sensor], (err, result) => {
+            db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Trạng thái đã được cập nhật thành "new" và thời gian đã được cập nhật.' });
+                res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
             });
         } else {
             // Nếu không có bản ghi phù hợp, thêm một bản ghi mới
@@ -88,7 +81,6 @@ app.post('/api/sensor', (req, res) => {
         }
     });
 });
-
 
 
 // API để lấy tổng số bản ghi
@@ -281,7 +273,6 @@ app.get('/api/sensor/pending', (req, res) => {
     });
 });
 
-//export pending by date or month where stauts different hide
 // Export pending by date or month where status different hide
 app.get('/api/sensor/pending/export', (req, res) => {
     const date = req.query.date; 
@@ -291,13 +282,13 @@ app.get('/api/sensor/pending/export', (req, res) => {
     let params = [];
 
     if (date && !month) {
-        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ? AND status != "hide"';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE(timestamp) = ? AND status != "hide"';
         params.push(date);
     } else if (!date && month) {
-        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
         params.push(month);
     } else if (date && month) {
-        sql = 'SELECT *, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
         params.push(month);
     } else {
         return res.status(400).json({ error: 'Either date or month must be provided.' });
@@ -333,6 +324,8 @@ app.get('/api/sensor/pending/export', (req, res) => {
         });
     });
 });
+
+
 
 //count stutatus khác hide và status = hide
 app.get('/api/sensor/status/count', (req, res) => {
