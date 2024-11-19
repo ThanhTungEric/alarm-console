@@ -270,7 +270,6 @@ app.get('/api/sensor/pending', (req, res) => {
 });
 
 // Export pending by date or month where status different hide
-// Export pending by date or month where status different hide
 app.get('/api/sensor/pending/export', (req, res) => {
     const date = req.query.date; 
     const month = req.query.month; 
@@ -300,7 +299,6 @@ app.get('/api/sensor/pending/export', (req, res) => {
             if (typeof row.change_timestamps === 'string') {
                 try {
                     timestamps = JSON.parse(row.change_timestamps);
-                    
                 } catch (e) {
                     console.error("Error parsing change_timestamps:", e);
                 }
@@ -311,23 +309,26 @@ app.get('/api/sensor/pending/export', (req, res) => {
             // Khởi tạo các giá trị cho các trạng thái
             let newTime = '', pendingTime = '', doneTime = '', hideTime = '';
 
-            // Duyệt qua các trạng thái để lấy thời gian
-            timestamps.forEach(item => {
-                switch (item.state) {
-                    case 'new':
-                        if (!newTime) newTime = item.time; // Chỉ lấy lần đầu tiên
-                        break;
-                    case 'pending':
-                        if (!pendingTime) pendingTime = item.time; // Chỉ lấy lần đầu tiên
-                        break;
-                    case 'done':
-                        if (!doneTime) doneTime = item.time; // Chỉ lấy lần đầu tiên
-                        break;
-                    case 'hide':
-                        if (!hideTime) hideTime = item.time; // Chỉ lấy lần đầu tiên
-                        break;
-                }
-            });
+            // Kiểm tra số lượng phần tử trong mảng timestamps
+            if (timestamps.length <= 4) {
+                // Duyệt qua các trạng thái để lấy thời gian
+                timestamps.forEach(item => {
+                    switch (item.state) {
+                        case 'new':
+                            if (!newTime) newTime = item.time; // Chỉ lấy lần đầu tiên
+                            break;
+                        case 'pending':
+                            if (!pendingTime) pendingTime = item.time; // Chỉ lấy lần đầu tiên
+                            break;
+                        case 'done':
+                            if (!doneTime) doneTime = item.time; // Chỉ lấy lần đầu tiên
+                            break;
+                        case 'hide':
+                            if (!hideTime) hideTime = item.time; // Chỉ lấy lần đầu tiên
+                            break;
+                    }
+                });
+            }
 
             return {
                 ...row,
@@ -356,9 +357,6 @@ app.get('/api/sensor/pending/export', (req, res) => {
         res.send(buffer);
     });
 });
-
-
-
 
 
 //count stutatus khác hide và status = hide
