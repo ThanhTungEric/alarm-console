@@ -64,9 +64,16 @@ app.post('/api/sensor', (req, res) => {
                     change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
                 WHERE sensor = ? AND status IN ("new", "pending", "done")`;
 
-            db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
+            // Cập nhật thời gian mới mà không thêm một trạng thái mới vào mảng
+            const updateChangeTimestampsSql = `
+                UPDATE alarm 
+                SET 
+                    change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'new')) 
+                WHERE sensor = ? AND status IN ("new", "pending", "done")`;
+
+            db.query(updateChangeTimestampsSql, [sensor], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
+                res.json({ message: 'Trạng thái đã được cập nhật thành "new" và thời gian đã được cập nhật.' });
             });
         } else {
             // Nếu không có bản ghi phù hợp, thêm một bản ghi mới
@@ -81,6 +88,7 @@ app.post('/api/sensor', (req, res) => {
         }
     });
 });
+
 
 
 // API để lấy tổng số bản ghi
@@ -274,6 +282,7 @@ app.get('/api/sensor/pending', (req, res) => {
 });
 
 //export pending by date or month where stauts different hide
+// Export pending by date or month where status different hide
 app.get('/api/sensor/pending/export', (req, res) => {
     const date = req.query.date; 
     const month = req.query.month; 
@@ -298,48 +307,12 @@ app.get('/api/sensor/pending/export', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         const formattedResults = results.map(row => {
-            const changeTimestamps = row.change_timestamps; 
-            // Khởi tạo các mảng để lưu thời gian cho từng trạng thái
-            const newTimes = [];
-            const pendingTimes = [];
-            const hideTimes = [];
-            const doneTimes = [];
-
-            // Lưu thời gian cho từng trạng thái
-           console.log("befor",changeTimestamps);
-            changeTimestamps.forEach(item => {
-                try {
-                    const formattedTime = moment(item.time).format('YYYY-MM-DD HH:mm:ss');
-                    switch (item.state) {
-                        case 'new':
-                            newTimes.push(formattedTime);
-                            break;
-                        case 'pending':
-                            pendingTimes.push(formattedTime);
-                            break;
-                        case 'done':
-                            doneTimes.push(formattedTime);
-                            break;
-                        case 'hide':
-                            hideTimes.push(formattedTime);
-                            break;
-                    }
-                } catch (error) {
-                    console.error('Error processing changeTimestamp item:', error.message);
-                    // Bỏ qua lỗi và tiếp tục xử lý các item khác
-                }
-            });
-            console.log("new time",newTimes);
             return {
                 ...row,
                 timestamp: row.formatted_timestamp,
-                newTimes: newTimes.join(', '),
-                pendingTimes: pendingTimes.join(', '),
-                hideTimes: hideTimes.join(', '),
-                doneTimes: doneTimes.join(', ')
             };
-
         });
+
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(formattedResults);
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
@@ -347,7 +320,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
         const filePath = path.join(__dirname, 'export', fileName);
 
-        // kiểm tra có file đó chưa nếu có thì xóa
+        // Kiểm tra có file đó chưa nếu có thì xóa
         if (fs.existsSync(filePath))
             fs.unlinkSync(filePath);
 
