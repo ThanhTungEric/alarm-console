@@ -262,26 +262,24 @@ app.get('/api/sensor/pending/export', (req, res) => {
             };
         });
 
+        // Tạo workbook và worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(formattedResults);
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
 
+        // Tạo buffer từ workbook
+        const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+        // Đặt tên file và kiểu nội dung
         const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
-        const filePath = path.join(__dirname, 'export', fileName);
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-        // Kiểm tra có file đó chưa nếu có thì xóa
-        if (fs.existsSync(filePath))
-            fs.unlinkSync(filePath);
-
-        XLSX.writeFile(workbook, filePath);
-
-        res.download(filePath, err => {
-            if (err) {
-                res.status(500).send({ error: 'Error downloading file' });
-            }
-        });
+        // Gửi buffer cho client
+        res.send(buffer);
     });
 });
+
 
 
 
