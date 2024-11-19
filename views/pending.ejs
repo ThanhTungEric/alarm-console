@@ -164,7 +164,6 @@
             const month = document.getElementById('monthFilter').value;
             //const sensor = document.getElementById('sensorFilter').value; // Giữ nguyên nếu đây là bộ lọc cảm biến
             const status = document.getElementById('statusFilter').value; // Lấy giá trị từ statusFilter
-            console.log(status);
             let url = `${apiUrl}?page=${page}`;
 
             if (date) {
@@ -293,7 +292,6 @@
         }
 
         function updatePageInfo(page) {
-            document.getElementById('pageInfo').textContent = `Page ${page}`;
             fetchTotalPages();
         }
 
