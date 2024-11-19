@@ -6,12 +6,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sensor Data</title>
     <link rel="stylesheet" href="/styles.css">
+    <style>
+        /* CSS cho pagination */
+        .page-button {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            margin: 0 5px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .page-button.active {
+            background-color: #1376d3;
+            color: white;
+            font-weight: bold;
+        }
+
+        .pagination {
+            width: 90%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container">
         <div class="header-container">
-            <div class="logo-left"><p  id="alarmStatus">Alarm: 0 / Normal: 0</p></div>
+            <div class="logo-left">
+                <p id="alarmStatus">Alarm: 0 / Normal: 0</p>
+            </div>
             <h1>HISTORY ALARM</h1>
             <div class="logo-right">
                 <img src="https://static.ybox.vn/2022/5/2/1653386529734-nguyen-hong-minh201866kj-avatar.png"
@@ -52,32 +83,16 @@
         </table>
 
         <div class="container-pa">
-            <div class="note"></div>
+            <div>
+                <p>Page: <span id="currentPage">1</span> / <span id="totalPages">0</span></p>
+            </div>
             <div class="pagination">
                 <button id="prevPageBtn">Previous</button>
-                <span id="pageInfo"></span> <span id="totalPagesInfoo"> /</span> <span id="totalPagesInfo"></span>
+                <div id="pageButtons"></div>
                 <button id="nextPageBtn">Next</button>
             </div>
-            <div class="note"></div>
         </div>
-    </div>
 
-    <!-- Modal cho xuất dữ liệu -->
-    <div id="exportModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close" id="closeModal">&times;</span>
-            </div>
-            <div class="export-date">
-                <label for="exportDate">Select date:</label>
-                <input type="date" id="exportDate">
-            </div>
-            <div class="export-month">
-                <label for="exportMonth">Select month:</label>
-                <input type="month" id="exportMonth">
-            </div>
-            <button id="confirmExportBtn">Export</button>
-        </div>
     </div>
 
     <script>
@@ -88,12 +103,7 @@
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
         document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
-        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
-        document.getElementById('closeModal').addEventListener('click', closeExportModal);
-        document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            fetchData(currentPage);
-        });
+        document.getElementById('refreshBtn').addEventListener('click', () => fetchData(currentPage));
         document.getElementById('gotoalarm').addEventListener('click', () => {
             window.location.href = '/pending';
         });
@@ -119,12 +129,11 @@
                 .then(response => response.json())
                 .then(data => {
                     renderTable(data);
-                    updatePageInfo(page);
-                    checkPagination();
+                    renderPagination();
                     fetchAlarmStatus();
-                });
+                })
+                .catch(error => console.error('Error fetching data:', error));
         }
-
 
         function fetchTotalPages() {
             const date = document.getElementById('dateFilter').value;
@@ -146,40 +155,92 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const totalRecords = data.total || 0; // Đảm bảo totalRecords không phải là NaN
-                    totalPages = Math.ceil(totalRecords / 15); // Giả sử mỗi trang có 15 bản ghi
-                    document.getElementById('totalPagesInfo').textContent = totalPages; // Cập nhật tổng số trang
-                    checkPagination();
+                    totalPages = Math.ceil(data.total / 15); // Giả sử mỗi trang có 15 bản ghi
+                    renderPagination();
                 })
                 .catch(error => console.error('Error fetching total pages:', error));
         }
-
 
         function fetchAlarmStatus() {
             fetch(`${apiUrl}/status/count`)
                 .then(response => response.json())
                 .then(data => {
-                    const totalPending = data.totalpending || 0;
-                    const totalHide = data.totalhide || 0;
-                    document.getElementById('alarmStatus').innerText = `Alarm: ${totalPending} / Normal: ${totalHide}`;
+                    document.getElementById('alarmStatus').innerText = `Alarm: ${data.totalpending || 0} / Normal: ${data.totalhide || 0}`;
                 })
                 .catch(error => console.error('Error fetching alarm status:', error));
         }
 
         function changePage(direction) {
-            currentPage += direction;
-            fetchData(currentPage);
+            if ((direction === -1 && currentPage > 1) || (direction === 1 && currentPage < totalPages)) {
+                currentPage += direction;
+                fetchData(currentPage);
+            }
         }
 
-        function checkPagination() {
+        function renderPagination() {
+            const pageButtonsContainer = document.getElementById('pageButtons');
+            pageButtonsContainer.innerHTML = ''; // Xóa các nút cũ trước khi render
+
+            const maxVisiblePages = 5; // Số trang hiển thị xung quanh trang hiện tại
+            const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            // Cập nhật số trang hiện tại trên giao diện
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+
+            // Hiển thị trang đầu nếu không nằm trong dãy hiển thị
+            if (startPage > 1) {
+                appendPageButton(1);
+                if (startPage > 2) {
+                    appendEllipsis();
+                }
+            }
+
+            // Hiển thị các trang trong dãy
+            for (let i = startPage; i <= endPage; i++) {
+                appendPageButton(i);
+            }
+
+            // Hiển thị trang cuối nếu không nằm trong dãy hiển thị
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    appendEllipsis();
+                }
+                appendPageButton(totalPages);
+            }
+
+            // Cập nhật trạng thái nút "Previous" và "Next"
             document.getElementById('prevPageBtn').disabled = currentPage === 1;
             document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
+
+            // Hàm thêm một nút trang
+            function appendPageButton(pageNumber) {
+                const button = document.createElement('span');
+                button.textContent = pageNumber;
+                button.classList.add('page-button');
+                if (pageNumber === currentPage) {
+                    button.classList.add('active');
+                }
+                button.addEventListener('click', () => {
+                    currentPage = pageNumber;
+                    fetchData(currentPage);
+                    renderPagination();
+                });
+                pageButtonsContainer.appendChild(button);
+            }
+
+            // Hàm thêm dấu "..."
+            function appendEllipsis() {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.classList.add('page-button');
+                ellipsis.style.cursor = 'default';
+                ellipsis.style.border = 'none';
+                pageButtonsContainer.appendChild(ellipsis);
+            }
         }
 
-        function updatePageInfo(page) {
-            document.getElementById('pageInfo').textContent = `Page ${page}`;
-            document.getElementById('totalPagesInfo').textContent = totalPages;
-        }
 
         function renderTable(data) {
             const dataBody = document.getElementById('dataBody');
@@ -187,7 +248,7 @@
 
             data.forEach(item => {
                 const row = document.createElement('tr');
-                let formattedTimestamp = item.timestamp.replace('T', ' ').replace('.000Z', '');
+                const formattedTimestamp = item.timestamp.replace('T', ' ').replace('.000Z', '');
                 row.innerHTML = `
                     <td>${item.sensor}</td>
                     <td>${item.sensor_state}</td>
@@ -208,43 +269,8 @@
             fetchTotalPages();
         }
 
-        function openExportModal() {
-            document.getElementById('exportModal').style.display = 'block';
-        }
-
-        function closeExportModal() {
-            document.getElementById('exportModal').style.display = 'none';
-        }
-
-        function confirmExport() {
-            const date = document.getElementById('exportDate').value;
-            const month = document.getElementById('exportMonth').value;
-
-            if (date) {
-                window.open(`${apiUrl}/export?date=${date}`);
-            } else if (month) {
-                window.open(`${apiUrl}/export?month=${month}`);
-            } else {
-                alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
-            }
-
-            closeExportModal();
-        }
-
         fetchData(currentPage);
         fetchTotalPages();
-
-        setInterval(() => {
-            fetchData(currentPage);
-            fetchTotalPages();
-        }, 5000);
-
-        window.onclick = function (event) {
-            const modal = document.getElementById('exportModal');
-            if (event.target === modal) {
-                closeExportModal();
-            }
-        };
     </script>
 </body>
 
