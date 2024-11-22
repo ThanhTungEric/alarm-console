@@ -52,7 +52,7 @@
             <div class="filter-input">
                 <input type="date" id="dateFilter" placeholder="Filter by date">
                 <input type="month" id="monthFilter" placeholder="Filter by month">
-                <select id="statusFilter"> <!-- Đổi tên thành statusFilter -->
+                <select id="statusFilter">
                     <option value="">All statuses</option>
                     <option value="new">New</option>
                     <option value="pending">Pending</option>
@@ -61,14 +61,13 @@
 
                 <div class="filter-btn">
                     <button id="filterBtn">Filter</button>
+                    <button id="exportBtn" style="background-color: #1376d3;">Export</button>
                 </div>
             </div>
             <div class="filter-action">
                 <button id="confirmAll" style="background-color: #1376d3;">Confirm all</button>
-                <button id="exportDateBtn" style="background-color: #1376d3;">Export</button>
                 <button id="refreshBtn" style="background-color: #1376d3;">Refresh</button>
                 <button id="historyalarm" style="background-color: #1376d3;">History alarm</button>
-
             </div>
         </div>
 
@@ -100,28 +99,11 @@
         </div>
     </div>
 
-    <div id="exportModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close" id="closeModal">&times;</span>
-            </div>
-            <div class="export-date">
-                <label for="exportDate">Select date:</label>
-                <input type="date" id="exportDate">
-            </div>
-            <div class="export-month">
-                <label for="exportMonth">Select month:</label>
-                <input type="month" id="exportMonth">
-            </div>
-            <button id="confirmExportBtn">Export</button>
-        </div>
-    </div>
-
     <script>
         const apiUrl = `http://${'<%= appName %>'}:3008/api/sensor/pending`;
-        //const apiUrl = 'http://192.168.2.150:3008/api/sensor/pending';
         let currentPage = 1;
-        let totalPages = 0; // Biến để lưu tổng số trang
+        let totalPages = 0;
+
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => {
             if (currentPage > 1) {
@@ -137,8 +119,7 @@
             }
         });
 
-        document.getElementById('exportDateBtn').addEventListener('click', openExportModal);
-        document.getElementById('closeModal').addEventListener('click', closeExportModal);
+        document.getElementById('exportBtn').addEventListener('click', confirmExport);
         document.getElementById('confirmAll').addEventListener('click', () => {
             fetch('/api/sensor/status/pending', {
                 method: 'PUT'
@@ -150,20 +131,19 @@
                 })
                 .catch(error => console.error('Error:', error));
         });
-        document.getElementById('confirmExportBtn').addEventListener('click', confirmExport);
+
         document.getElementById('refreshBtn').addEventListener('click', () => {
             fetchData(currentPage);
         });
 
         document.getElementById('historyalarm').addEventListener('click', () => {
-            window.location.href = '/'; // 
+            window.location.href = '/';
         });
 
         function fetchData(page) {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
-            //const sensor = document.getElementById('sensorFilter').value; // Giữ nguyên nếu đây là bộ lọc cảm biến
-            const status = document.getElementById('statusFilter').value; // Lấy giá trị từ statusFilter
+            const status = document.getElementById('statusFilter').value;
             let url = `${apiUrl}?page=${page}`;
 
             if (date) {
@@ -172,7 +152,7 @@
             if (month) {
                 url += `&month=${month}`;
             }
-            if (status) { // Thêm trạng thái vào URL
+            if (status) {
                 url += `&status=${status}`;
             }
 
@@ -182,53 +162,48 @@
                     renderPagination();
                     renderTable(data);
                     updatePageInfo(page);
-                    fetchTotalPages(); // Cập nhật tổng số trang
+                    fetchTotalPages();
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
 
-
-
         function fetchTotalPages() {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
-            const status = document.getElementById('statusFilter').value; // Lấy giá trị từ statusFilter
+            const status = document.getElementById('statusFilter').value;
 
             let url = `${apiUrl}/count`;
 
-            if (status) { // Thêm trạng thái vào URL
+            if (status) {
                 url += `?status=${status}`;
             }
             if (date) {
-                url += `?date=${date}`;
+                url += `&date=${date}`;
             }
             if (month) {
-                url += `?month=${month}`;
+                url += `&month=${month}`;
             }
-
 
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    totalPages = Math.ceil(data.total / 15); // Giả sử mỗi trang có 15 bản ghi
-                    renderPagination(); // Cập nhật giao diện phân trang
+                    totalPages = Math.ceil(data.total / 15);
+                    renderPagination();
                 })
                 .catch(error => console.error('Error fetching total pages:', error));
         }
 
         function renderPagination() {
             const pageButtonsContainer = document.getElementById('pageButtons');
-            pageButtonsContainer.innerHTML = ''; // Xóa các nút cũ trước khi render
+            pageButtonsContainer.innerHTML = '';
 
-            const maxVisiblePages = 5; // Số trang hiển thị xung quanh trang hiện tại
+            const maxVisiblePages = 5;
             const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
             const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-            // Cập nhật số trang hiện tại trên giao diện
             document.getElementById('currentPage').textContent = currentPage;
             document.getElementById('totalPages').textContent = totalPages;
 
-            // Hiển thị trang đầu nếu không nằm trong dãy hiển thị
             if (startPage > 1) {
                 appendPageButton(1);
                 if (startPage > 2) {
@@ -236,12 +211,10 @@
                 }
             }
 
-            // Hiển thị các trang trong dãy
             for (let i = startPage; i <= endPage; i++) {
                 appendPageButton(i);
             }
 
-            // Hiển thị trang cuối nếu không nằm trong dãy hiển thị
             if (endPage < totalPages) {
                 if (endPage < totalPages - 1) {
                     appendEllipsis();
@@ -249,11 +222,9 @@
                 appendPageButton(totalPages);
             }
 
-            // Cập nhật trạng thái nút "Previous" và "Next"
             document.getElementById('prevPageBtn').disabled = currentPage === 1;
             document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
 
-            // Hàm thêm một nút trang
             function appendPageButton(pageNumber) {
                 const button = document.createElement('span');
                 button.textContent = pageNumber;
@@ -269,7 +240,6 @@
                 pageButtonsContainer.appendChild(button);
             }
 
-            // Hàm thêm dấu "..."
             function appendEllipsis() {
                 const ellipsis = document.createElement('span');
                 ellipsis.textContent = '...';
@@ -278,17 +248,6 @@
                 ellipsis.style.border = 'none';
                 pageButtonsContainer.appendChild(ellipsis);
             }
-        }
-
-
-        function changePage(direction) {
-            currentPage += direction;
-            fetchData(currentPage);
-        }
-
-        function checkPagination() {
-            document.getElementById('prevPageBtn').disabled = currentPage === 1;
-            document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
         }
 
         function updatePageInfo(page) {
@@ -371,28 +330,34 @@
             fetchTotalPages();
         }
 
-        function openExportModal() {
-            document.getElementById('exportModal').style.display = 'block';
-        }
-
-        function closeExportModal() {
-            document.getElementById('exportModal').style.display = 'none';
-        }
-
         function confirmExport() {
-            const date = document.getElementById('exportDate').value;
-            const month = document.getElementById('exportMonth').value;
+            const date = document.getElementById('dateFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            const status = document.getElementById('statusFilter').value;
 
+            let exportUrl = `${apiUrl}/export`; // Sửa URL
+
+            // Thêm tham số vào URL xuất
+            const params = [];
             if (date) {
-                window.open(`${apiUrl}/export?date=${date}`);
-            } else if (month) {
-                window.open(`${apiUrl}/export?month=${month}`);
-            } else {
-                alert('Vui lòng chọn ngày hoặc tháng để xuất dữ liệu.');
+                params.push(`date=${date}`);
+            }
+            if (month) {
+                params.push(`month=${month}`);
+            }
+            if (status) {
+                params.push(`status=${status}`);
             }
 
-            closeExportModal();
+            // Nếu có tham số, thêm vào URL
+            if (params.length > 0) {
+                exportUrl += `?${params.join('&')}`;
+            }
+
+            // Mở URL xuất
+            window.open(exportUrl);
         }
+
 
 
         fetchData(currentPage);
@@ -401,13 +366,6 @@
             fetchData(currentPage);
             fetchTotalPages();
         }, 5000);
-
-        window.onclick = function (event) {
-            const modal = document.getElementById('exportModal');
-            if (event.target === modal) {
-                closeExportModal();
-            }
-        }
     </script>
 
 </body>

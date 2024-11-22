@@ -140,28 +140,31 @@ app.get('/api/sensor', (req, res) => {
 });
 
 
-
 app.get('/api/sensor/export', (req, res) => {
     const date = req.query.date; // Ngày
     const month = req.query.month; // Tháng
+    const sensor = req.query.sensor; // Cảm biến (nếu có)
 
     let sql;
     let params = [];
 
-    if (date && !month) {
+    if (date) {
         // Xuất theo ngày
         sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE(timestamp) = ?';
         params.push(date);
-    } else if (!date && month) {
+    } else if (month) {
         // Xuất theo tháng
         sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
-    } else if (date && month) {
-        // Xuất theo tháng (ngày sẽ được bỏ qua)
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ?';
-        params.push(month);
     } else {
-        return res.status(400).json({ error: 'Either date or month must be provided.' });
+        // Nếu không có bộ lọc nào, xuất tất cả dữ liệu
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm';
+    }
+
+    // Nếu có bộ lọc cảm biến, thêm điều kiện vào SQL
+    if (sensor) {
+        sql += ' WHERE sensor = ?';
+        params.push(sensor);
     }
 
     db.query(sql, params, (err, results) => {
@@ -221,7 +224,7 @@ app.get('/api/sensor/export', (req, res) => {
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
         // Đặt tên file và kiểu nội dung
-        const fileName = date ? `alarm_${date}.xlsx` : `alarm_${month}.xlsx`;
+        const fileName = date ? `alarm_${date}.xlsx` : month ? `alarm_${month}.xlsx` : 'alarm_all.xlsx';
         res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
@@ -273,21 +276,26 @@ app.get('/api/sensor/pending', (req, res) => {
 app.get('/api/sensor/pending/export', (req, res) => {
     const date = req.query.date; 
     const month = req.query.month; 
+    const status = req.query.status;
 
     let sql;
     let params = [];
 
-    if (date && !month) {
+    // Xây dựng truy vấn SQL dựa trên các bộ lọc
+    if (date) {
         sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE(timestamp) = ? AND status != "hide"';
         params.push(date);
-    } else if (!date && month) {
-        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
-        params.push(month);
-    } else if (date && month) {
+    } else if (month) {
         sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE DATE_FORMAT(timestamp, "%Y-%m") = ? AND status != "hide"';
         params.push(month);
     } else {
-        return res.status(400).json({ error: 'Either date or month must be provided.' });
+        sql = 'SELECT sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, DATE_FORMAT(timestamp, "%Y-%m-%d %H:%i:%s") as formatted_timestamp, change_timestamps FROM alarm WHERE status != "hide"';
+    }
+
+    // Nếu có bộ lọc cảm biến, thêm điều kiện vào SQL
+    if (status) {
+        sql += ' AND status = ?';
+        params.push(status);
     }
 
     db.query(sql, params, (err, results) => {
@@ -349,7 +357,7 @@ app.get('/api/sensor/pending/export', (req, res) => {
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
         // Đặt tên file và kiểu nội dung
-        const fileName = date ? `pending_alarm_${date}.xlsx` : `pending_alarm_${month}.xlsx`;
+        const fileName = date ? `pending_alarm_${date}.xlsx` : (month ? `pending_alarm_${month}.xlsx` : 'all.xlsx'); // Sửa ở đây
         res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
