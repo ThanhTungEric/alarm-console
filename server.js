@@ -389,33 +389,32 @@ app.get('/api/sensor/status/count/new', (req, res) => {
 });
 
 
-//count pending by date or month where stauts different hide
+// Count pending by date or month where status different hide
 app.get('/api/sensor/pending/count', (req, res) => {
     const date = req.query.date;
     const month = req.query.month;
     const status = req.query.status; // Lấy status từ query
     let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status != "hide"';
-
     
+    const params = [];
+
     if (status) {
-        sql += ' AND status = ?'; // Thêm điều kiện cho status
+        sql += ' AND status = ?';
+        params.push(status); // Thêm status vào params
     }
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
+        params.push(date); // Thêm date vào params
     } else if (month) {
         sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
-    }
-
-
-    // Tạo mảng params để truyền vào query
-    const params = [date || month];
-    if (status) {
-        params.push(status);
+        params.push(month); // Thêm month vào params
     }
 
     db.query(sql, params, (err, results) => {
+        console.log(sql);
         if (err) return res.status(500).json({ error: err.message });
         res.json({ total: results[0]?.total || 0 });
+        console.log(results[0]?.total || 0);
     });
 });
 
