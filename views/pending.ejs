@@ -103,7 +103,7 @@
         const apiUrl = `http://${'<%= appName %>'}:3008/api/sensor/pending`;
         let currentPage = 1;
         let totalPages = 0;
-
+    
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => {
             if (currentPage > 1) {
@@ -111,41 +111,41 @@
                 fetchData(currentPage);
             }
         });
-
+    
         document.getElementById('nextPageBtn').addEventListener('click', () => {
             if (currentPage < totalPages) {
                 currentPage++;
                 fetchData(currentPage);
             }
         });
-
+    
         document.getElementById('exportBtn').addEventListener('click', confirmExport);
         document.getElementById('confirmAll').addEventListener('click', () => {
             fetch('/api/sensor/status/pending', {
                 method: 'PUT'
             })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    fetchData(currentPage);
-                })
-                .catch(error => console.error('Error:', error));
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchData(currentPage);
+            })
+            .catch(error => console.error('Error:', error));
         });
-
+    
         document.getElementById('refreshBtn').addEventListener('click', () => {
             fetchData(currentPage);
         });
-
+    
         document.getElementById('historyalarm').addEventListener('click', () => {
             window.location.href = '/';
         });
-
+    
         function fetchData(page) {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
             const status = document.getElementById('statusFilter').value;
             let url = `${apiUrl}?page=${page}`;
-
+    
             if (date) {
                 url += `&date=${date}`;
             }
@@ -155,24 +155,23 @@
             if (status) {
                 url += `&status=${status}`;
             }
-
+    
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     renderTable(data); // Hiển thị bảng dữ liệu
-            updatePageInfo(page); // Cập nhật thông tin trang
-            fetchTotalPages(); // Cập nhật tổng số trang
+                    updatePageInfo(page); // Cập nhật thông tin trang
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
-
+    
         function fetchTotalPages() {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
             const status = document.getElementById('statusFilter').value;
-
+    
             let url = `${apiUrl}/count`;
-
+    
             if (status) {
                 url += `?status=${status}`;
             }
@@ -182,48 +181,48 @@
             if (month) {
                 url += `&month=${month}`;
             }
-
+    
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    totalPages = Math.ceil(data.total / 15);
-                    renderPagination();
+                    totalPages = Math.ceil(data.total / 15); // Cập nhật tổng số trang
+                    renderPagination(); // Hiển thị phân trang
                 })
                 .catch(error => console.error('Error fetching total pages:', error));
         }
-
+    
         function renderPagination() {
             const pageButtonsContainer = document.getElementById('pageButtons');
             pageButtonsContainer.innerHTML = '';
-
+    
             const maxVisiblePages = 5;
             const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
             const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
+    
             document.getElementById('currentPage').textContent = currentPage;
             document.getElementById('totalPages').textContent = totalPages;
-
+    
             if (startPage > 1) {
                 appendPageButton(1);
                 if (startPage > 2) {
                     appendEllipsis();
                 }
             }
-
+    
             for (let i = startPage; i <= endPage; i++) {
                 appendPageButton(i);
             }
-
+    
             if (endPage < totalPages) {
                 if (endPage < totalPages - 1) {
                     appendEllipsis();
                 }
                 appendPageButton(totalPages);
             }
-
+    
             document.getElementById('prevPageBtn').disabled = currentPage === 1;
             document.getElementById('nextPageBtn').disabled = currentPage === totalPages || totalPages === 0;
-
+    
             function appendPageButton(pageNumber) {
                 const button = document.createElement('span');
                 button.textContent = pageNumber;
@@ -238,7 +237,7 @@
                 });
                 pageButtonsContainer.appendChild(button);
             }
-
+    
             function appendEllipsis() {
                 const ellipsis = document.createElement('span');
                 ellipsis.textContent = '...';
@@ -248,28 +247,24 @@
                 pageButtonsContainer.appendChild(ellipsis);
             }
         }
-
-        function updatePageInfo(page) {
-            fetchTotalPages();
-        }
-
+    
         function renderTable(data) {
             const dataBody = document.getElementById('dataBody');
             dataBody.innerHTML = '';
-
+    
             data.forEach(item => {
                 const row = document.createElement('tr');
                 let formattedTimestamp = item.timestamp.replace('T', ' ').replace('.000Z', '');
                 let actionButton = '';
-
+    
                 if (item.status === 'new') {
                     actionButton = `<button class="confirm-button" onclick="updateStatusToPending(${item.id})">Confirm</button>`;
                 } else if (item.status === 'done') {
                     actionButton = `<button onclick="updateStatusToHide(${item.id})">Confirm</button>`;
                 }
-
+    
                 const historyButton = `<button onclick="window.location.href='/historydetail?sensor=${encodeURIComponent(item.sensor)}'">History</button>`;
-
+    
                 let statusClass = '';
                 switch (item.status) {
                     case 'new':
@@ -282,9 +277,9 @@
                         statusClass = 'done';
                         break;
                 }
-
+    
                 row.className = statusClass;
-
+    
                 row.innerHTML = `
                     <td>${item.sensor}</td>
                     <td>${item.sensor_state}</td>
@@ -298,45 +293,38 @@
                 dataBody.appendChild(row);
             });
         }
-
+    
         function updateStatusToPending(id) {
             fetch(`/api/sensor/status/pending/${id}`, {
                 method: 'PUT'
             })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    fetchData(currentPage);
-                })
-                .catch(error => console.error('Error:', error));
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchData(currentPage);
+            })
+            .catch(error => console.error('Error:', error));
         }
-
+    
         function updateStatusToHide(id) {
             fetch(`/api/sensor/status/hide/${id}`, {
                 method: 'PUT'
             })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    fetchData(currentPage);
-                })
-                .catch(error => console.error('Error:', error));
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchData(currentPage);
+            })
+            .catch(error => console.error('Error:', error));
         }
-
-        function filterData() {
-            currentPage = 1;
-            fetchData(currentPage);
-            fetchTotalPages();
-        }
-
+    
         function confirmExport() {
             const date = document.getElementById('dateFilter').value;
             const month = document.getElementById('monthFilter').value;
             const status = document.getElementById('statusFilter').value;
-
-            let exportUrl = `${apiUrl}/export`; // Sửa URL
-
-            // Thêm tham số vào URL xuất
+    
+            let exportUrl = `${apiUrl}/export`;
+    
             const params = [];
             if (date) {
                 params.push(`date=${date}`);
@@ -347,18 +335,20 @@
             if (status) {
                 params.push(`status=${status}`);
             }
-
-            // Nếu có tham số, thêm vào URL
+    
             if (params.length > 0) {
                 exportUrl += `?${params.join('&')}`;
             }
-
-            // Mở URL xuất
+    
             window.open(exportUrl);
         }
-
-
-
+    
+        function filterData() {
+            currentPage = 1; // Đặt lại trang hiện tại về 1
+            fetchData(currentPage); // Lấy dữ liệu với trang hiện tại
+            fetchTotalPages(); // Cập nhật tổng số trang
+        }
+    
         fetchData(currentPage);
         fetchTotalPages();
         setInterval(() => {
@@ -366,6 +356,7 @@
             fetchTotalPages();
         }, 5000);
     </script>
+    
 
 </body>
 
