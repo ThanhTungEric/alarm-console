@@ -452,7 +452,7 @@ app.put('/api/sensor/status/done', (req, res) => {
             status = "done", 
             timestamp = NOW(), 
             change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
-        WHERE sensor = ? AND status = "pending"`;
+        WHERE sensor = ? AND (status = "pending" OR status = "new")`;
 
     db.query(sql, [sensor], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
