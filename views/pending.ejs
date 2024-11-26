@@ -121,7 +121,7 @@
 
         document.getElementById('exportBtn').addEventListener('click', confirmExport);
         document.getElementById('confirmAll').addEventListener('click', () => {
-            fetch('/api/sensor/status/pending', {
+            fetch('/api/sensor/pending/status/hide/v2', {
                 method: 'PUT'
             })
                 .then(response => response.json())
