@@ -537,9 +537,7 @@ app.put('/api/sensor/status/hide/v2', (req, res) => {
         UPDATE alarm 
         SET 
             status = "hide", 
-            timestamp = NOW(), 
-            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'hide'))
-        WHERE status IN ("done", "pending")`; // Cập nhật các bản ghi có trạng thái "done" hoặc "pending"
+        WHERE status = "pending"`; // Cập nhật các bản ghi có trạng thái "done" hoặc "pending"
 
     db.query(sql, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
