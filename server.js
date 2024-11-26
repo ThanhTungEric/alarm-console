@@ -532,6 +532,24 @@ app.put('/api/sensor/status/hide', (req, res) => {
     });
 });
 
+app.put('/api/sensor/status/hide/v2', (req, res) => {
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "hide", 
+            timestamp = NOW(), 
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'hide'))
+        WHERE status IN ("done", "pending")`; // Cập nhật các bản ghi có trạng thái "done" hoặc "pending"
+
+    db.query(sql, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Không tìm thấy bản ghi hoặc trạng thái đã xong.' });
+        }
+        res.json({ message: 'Trạng thái đã được cập nhật thành hide.' });
+    });
+});
+
 
 // lấy dnah sách theo sensor
 app.get('/api/sensor/dpm', (req, res) => {
