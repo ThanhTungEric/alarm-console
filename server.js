@@ -536,7 +536,7 @@ app.put('/api/sensor/status/hide/v2', (req, res) => {
     const sql = `
         UPDATE alarm 
         SET 
-            status = "hide", 
+            status = "hide"
         WHERE status = "pending"`; // Cập nhật các bản ghi có trạng thái "done" hoặc "pending"
 
     db.query(sql, (err, result) => {
