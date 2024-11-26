@@ -411,10 +411,8 @@ app.get('/api/sensor/pending/count', (req, res) => {
     }
 
     db.query(sql, params, (err, results) => {
-        console.log(sql);
         if (err) return res.status(500).json({ error: err.message });
         res.json({ total: results[0]?.total || 0 });
-        console.log(results[0]?.total || 0);
     });
 });
 
@@ -504,11 +502,33 @@ app.put('/api/sensor/status/pending', (req, res) => {
                     WHEN status = "new" THEN "pending" 
                     WHEN status = "done" THEN "hide" 
                     ELSE status 
-                END))`;
+                END))
+        WHERE status IN ("new", "done")`; // Thêm điều kiện WHERE để chỉ cập nhật các bản ghi có trạng thái "new" hoặc "done"
 
     db.query(updateStatusSql, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Đã cập nhật trạng thái: "new" thành "pending" và "done" thành "hide".' });
+    });
+});
+
+
+
+// chuyển tất cả trạng thái từ done sang hide
+app.put('/api/sensor/status/hide', (req, res) => {
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "hide", 
+            timestamp = NOW(), 
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'hide'))
+        WHERE status = "done"`; // Thêm điều kiện WHERE để chỉ cập nhật các bản ghi có trạng thái "done"
+
+    db.query(sql, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Không tìm thấy bản ghi hoặc trạng thái đã xong.' });
+        }
+        res.json({ message: 'Trạng thái đã được cập nhật thành hide.' });
     });
 });
 
