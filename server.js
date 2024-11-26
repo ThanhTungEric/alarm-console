@@ -451,11 +451,6 @@ app.put('/api/sensor/status/done', (req, res) => {
         SET 
             status = "done", 
             timestamp = NOW(), 
-            message = CASE 
-                WHEN status = "new" THEN "auto reconnected" 
-                WHEN status = "pending" THEN "reconnected" 
-                ELSE message 
-            END,
             change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
         WHERE sensor = ? AND (status = "pending" OR status = "new")`;
 
