@@ -82,58 +82,80 @@ db.connect(err => {
 //     });
 // });
 
-// API ghi dữ liệu
+// Mảng tạm thời để lưu các yêu cầu
+let requestQueue = [];
+let timeoutId;
+
+// Hàm xử lý lưu trữ yêu cầu vào cơ sở dữ liệu
+const processRequests = () => {
+    if (requestQueue.length < 400) {
+        requestQueue.forEach(req => {
+            const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req;
+
+            const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND status IN ("new", "pending", "done")';
+
+            db.query(checkSql, [sensor], (err, results) => {
+                if (err) {
+                    console.error('Error during check:', err);
+                    return;
+                }
+
+                const existingRecord = results.find(record => record.alarm_class === alarm_class);
+
+                if (existingRecord) {
+                    const updateSql = `
+                        UPDATE alarm 
+                        SET 
+                            sensor_state = ?, 
+                            acknowledgment_state = "none",
+                            priority = ?, 
+                            message = ?, 
+                            status = "new", 
+                            timestamp = NOW(),
+                            change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')) 
+                        WHERE sensor = ? AND status IN ("new", "pending", "done") AND alarm_class = ?`;
+
+                    db.query(updateSql, [sensor_state, priority, message, sensor, alarm_class], (err, result) => {
+                        if (err) {
+                            console.error('Error during update:', err);
+                        }
+                    });
+                } else {
+                    const insertSql = `
+                        INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
+
+                    db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
+                        if (err) {
+                            console.error('Error during insert:', err);
+                        }
+                    });
+                }
+            });
+        });
+        console.log('Đã xử lý và lưu các yêu cầu vào cơ sở dữ liệu.');
+    } else {
+        console.log('Tổng số yêu cầu lớn hơn 400, không lưu vào cơ sở dữ liệu.');
+    }
+    requestQueue = []; // Xóa mảng sau khi xử lý
+};
+
+// API để nhận dữ liệu từ cảm biến
 app.post('/api/sensor', (req, res) => {
-    // Lấy dữ liệu từ yêu cầu
-    const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
+    // Lưu yêu cầu vào mảng tạm thời
+    requestQueue.push(req.body);
 
-    // Kiểm tra xem có bản ghi nào với sensor và trạng thái 'new', 'pending', hoặc 'done'
-    const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND status IN ("new", "pending", "done")';
+    // Nếu chưa có timeout, thiết lập timeout
+    if (!timeoutId) {
+        timeoutId = setTimeout(() => {
+            processRequests();
+            timeoutId = null; // Đặt lại timeoutId sau khi xử lý
+        }, 5000);
+    }
 
-    db.query(checkSql, [sensor], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        // Kiểm tra xem có bản ghi nào với alarm_class tương ứng
-        const existingRecord = results.find(record => record.alarm_class === alarm_class);
-
-        if (existingRecord) {
-            // Nếu có bản ghi với cùng sensor và cùng alarm_class, cập nhật trạng thái thành 'new' và thời gian
-            const updateSql = `
-                UPDATE alarm 
-                SET 
-                    sensor_state = ?, 
-                    acknowledgment_state = "none",
-                    priority = ?, 
-                    message = ?, 
-                    status = "new", 
-                    timestamp = NOW(),
-                    change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')) 
-                WHERE sensor = ? AND status IN ("new", "pending", "done") AND alarm_class = ?`;
-
-            db.query(updateSql, [sensor_state, priority, message, sensor, alarm_class], (err, result) => {
-                if (err) {
-                    console.error('Error during update:', err); // In ra lỗi chi tiết
-                    return res.status(500).json({ error: err.message });
-                }
-                res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
-            });
-        } else {
-            // Nếu không có bản ghi phù hợp với alarm_class, thêm một bản ghi mới
-            const insertSql = `
-                INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
-
-            db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
-                if (err) {
-                    console.error('Error during insert:', err); // In ra lỗi chi tiết
-                    return res.status(500).json({ error: err.message });
-                }
-                res.status(201).json({ id: result.insertId });
-            });
-        }
-    });
+    // Trả về phản hồi ngay lập tức cho client
+    res.status(202).json({ message: 'Yêu cầu đã được nhận và sẽ được xử lý sau 5 giây.' });
 });
-
 
 // API để lấy tổng số bản ghi
 app.get('/api/sensor/count', (req, res) => {
