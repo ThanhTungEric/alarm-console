@@ -502,7 +502,7 @@ app.put('/api/sensor/status/done', (req, res) => {
         SET 
             status = "done", 
             timestamp = NOW(),
-            message = "Device is reconnected",
+            message = "Device reconnected",
             change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
         WHERE sensor = ? AND (status = "pending" OR status = "new") AND alarm_class <> "fault"`;
 
@@ -524,7 +524,7 @@ app.put('/api/sensor/status/done/fault', (req, res) => {
         SET 
             status = "done", 
             timestamp = NOW(), 
-            message = "Device is working normally",
+            message = "Device working normally",
             change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
         WHERE sensor = ? AND (status = "pending" OR status = "new") AND alarm_class = "fault"`;
 
