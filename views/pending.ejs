@@ -96,6 +96,9 @@
                 <div id="pageButtons"></div>
                 <button id="nextPageBtn">Next</button>
             </div>
+            <div>
+                <a id="hideALL">----------</a>
+            </div>
         </div>
     </div>
 
@@ -103,6 +106,18 @@
         const apiUrl = `http://${'<%= appName %>'}:3008/api/sensor/pending`;
         let currentPage = 1;
         let totalPages = 0;
+
+        document.getElementById('hideALL').addEventListener('click', () => {
+            fetch('/api/sensor/pending/status/hide/v2', {
+                method: 'PUT'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchData(currentPage);
+                })
+                .catch(error => console.error('Error:', error));
+        });
 
         document.getElementById('filterBtn').addEventListener('click', filterData);
         document.getElementById('prevPageBtn').addEventListener('click', () => {
