@@ -40,7 +40,51 @@ db.connect(err => {
 
 
 // API ghi dữ liệu
+// app.post('/api/sensor', (req, res) => {
+//     const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
+
+//     // Kiểm tra xem có bản ghi nào với sensor và trạng thái 'new', 'pending', hoặc 'done'
+//     const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND status IN ("new", "pending", "done")';
+
+//     db.query(checkSql, [sensor], (err, results) => {
+//         if (err) return res.status(500).json({ error: err.message });
+
+//         if (results.length > 0) {
+//             // Nếu có bản ghi, cập nhật trạng thái thành 'new' và xóa change_timestamps cũ
+//             const updateSql = `
+//                 UPDATE alarm 
+//                 SET 
+//                     sensor_state = ?, 
+//                     acknowledgment_state = "none",
+//                     alarm_class = ?, 
+//                     priority = ?, 
+//                     message = ?, 
+//                     status = "new", 
+//                     timestamp = NOW(),
+//                     change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')) 
+//                 WHERE sensor = ? AND status IN ("new", "pending", "done")`;
+
+//             db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
+//                 if (err) return res.status(500).json({ error: err.message });
+//                 res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
+//             });
+//         } else {
+//             // Nếu không có bản ghi phù hợp, thêm một bản ghi mới
+//             const insertSql = `
+//                 INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
+//                 VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
+
+//             db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
+//                 if (err) return res.status(500).json({ error: err.message });
+//                 res.status(201).json({ id: result.insertId });
+//             });
+//         }
+//     });
+// });
+
+// API ghi dữ liệu
 app.post('/api/sensor', (req, res) => {
+    // Lấy dữ liệu từ yêu cầu
     const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
 
     // Kiểm tra xem có bản ghi nào với sensor và trạng thái 'new', 'pending', hoặc 'done'
@@ -49,38 +93,47 @@ app.post('/api/sensor', (req, res) => {
     db.query(checkSql, [sensor], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        if (results.length > 0) {
-            // Nếu có bản ghi, cập nhật trạng thái thành 'new' và xóa change_timestamps cũ
+        // Kiểm tra xem có bản ghi nào với alarm_class tương ứng
+        const existingRecord = results.find(record => record.alarm_class === alarm_class);
+
+        if (existingRecord) {
+            // Nếu có bản ghi với cùng sensor và cùng alarm_class, cập nhật trạng thái thành 'new' và thời gian
             const updateSql = `
                 UPDATE alarm 
                 SET 
                     sensor_state = ?, 
                     acknowledgment_state = "none",
-                    alarm_class = ?, 
                     priority = ?, 
                     message = ?, 
                     status = "new", 
                     timestamp = NOW(),
                     change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')) 
-                WHERE sensor = ? AND status IN ("new", "pending", "done")`;
+                WHERE sensor = ? AND status IN ("new", "pending", "done") AND alarm_class = ?`;
 
-            db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
-                if (err) return res.status(500).json({ error: err.message });
+            db.query(updateSql, [sensor_state, priority, message, sensor, alarm_class], (err, result) => {
+                if (err) {
+                    console.error('Error during update:', err); // In ra lỗi chi tiết
+                    return res.status(500).json({ error: err.message });
+                }
                 res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
             });
         } else {
-            // Nếu không có bản ghi phù hợp, thêm một bản ghi mới
+            // Nếu không có bản ghi phù hợp với alarm_class, thêm một bản ghi mới
             const insertSql = `
                 INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
 
             db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
-                if (err) return res.status(500).json({ error: err.message });
+                if (err) {
+                    console.error('Error during insert:', err); // In ra lỗi chi tiết
+                    return res.status(500).json({ error: err.message });
+                }
                 res.status(201).json({ id: result.insertId });
             });
         }
     });
 });
+
 
 // API để lấy tổng số bản ghi
 app.get('/api/sensor/count', (req, res) => {
@@ -448,9 +501,10 @@ app.put('/api/sensor/status/done', (req, res) => {
         UPDATE alarm 
         SET 
             status = "done", 
-            timestamp = NOW(), 
+            timestamp = NOW(),
+            message = "Device is reconnected",
             change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
-        WHERE sensor = ? AND (status = "pending" OR status = "new")`;
+        WHERE sensor = ? AND (status = "pending" OR status = "new") AND alarm_class <> "fault"`;
 
     db.query(sql, [sensor], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -460,6 +514,29 @@ app.put('/api/sensor/status/done', (req, res) => {
         res.json({ message: 'Trạng thái đã được cập nhật.' });
     });
 });
+
+
+// API chuyển trạng thái từ pending sang done cho alarm_class là 'fault'
+app.put('/api/sensor/status/done/fault', (req, res) => {
+    const { sensor } = req.body; // Lấy sensor từ body
+    const sql = `
+        UPDATE alarm 
+        SET 
+            status = "done", 
+            timestamp = NOW(), 
+            message = "Device is working normally",
+            change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done')) 
+        WHERE sensor = ? AND (status = "pending" OR status = "new") AND alarm_class = "fault"`;
+
+    db.query(sql, [sensor], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Không tìm thấy bản ghi hoặc trạng thái đang làm.' });
+        }
+        res.json({ message: 'Trạng thái đã được cập nhật.' });
+    });
+});
+
 
 // API chuyển trạng thái từ done sang hide
 app.put('/api/sensor/status/hide/:id', (req, res) => {
