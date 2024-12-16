@@ -40,7 +40,7 @@ db.connect(err => {
     if (err) throw err;
 
     console.log('Connected to MySQL Database');
-    createTable();  
+    createTable();
 });
 
 
@@ -281,9 +281,9 @@ app.get('/api/sensor/pending', (req, res) => {
     const offset = (page - 1) * limit;
     const date = req.query.date;
     const month = req.query.month;
-    const status = req.query.status; 
+    const status = req.query.status;
 
-    let sql = 'SELECT * FROM alarm WHERE status != "hide" AND timestamp >= NOW() - INTERVAL 30 DAY'; 
+    let sql = 'SELECT * FROM alarm WHERE status != "hide" AND timestamp >= NOW() - INTERVAL 30 DAY';
 
     const params = [];
 
@@ -295,7 +295,7 @@ app.get('/api/sensor/pending', (req, res) => {
         sql += ' AND DATE_FORMAT(timestamp, "%Y-%m") = ?';
         params.push(month);
     }
-    if (status) { 
+    if (status) {
         sql += ' AND status = ?';
         params.push(status);
     }
@@ -312,8 +312,8 @@ app.get('/api/sensor/pending', (req, res) => {
 
 // Export pending by date or month where status different hide
 app.get('/api/sensor/pending/export', (req, res) => {
-    const date = req.query.date; 
-    const month = req.query.month; 
+    const date = req.query.date;
+    const month = req.query.month;
     const status = req.query.status;
 
     let sql;
@@ -433,7 +433,7 @@ app.get('/api/sensor/pending/count', (req, res) => {
     const month = req.query.month;
     const status = req.query.status; // Lấy status từ query
     let sql = 'SELECT COUNT(*) as total FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY AND status != "hide"';
-    
+
     const params = [];
 
     if (status) {
@@ -620,7 +620,7 @@ app.get('/api/sensor/dpm', (req, res) => {
     const month = req.query.month;
     const sensor = req.query.sensor; // Thêm tham số sensor
 
-    let sql = 'SELECT * FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY'; 
+    let sql = 'SELECT * FROM alarm WHERE timestamp >= NOW() - INTERVAL 30 DAY';
 
     if (date) {
         sql += ' AND DATE(timestamp) = ?';
@@ -699,7 +699,7 @@ app.post('/api/historyview', (req, res) => {
 app.get('/api/latest-alarm', (req, res) => {
     // Truy vấn sensor mới nhất từ bảng historyview
     const latestSensorSql = 'SELECT sensor FROM historyview ORDER BY timestamp DESC LIMIT 1';
-    
+
     db.query(latestSensorSql, (err, sensorResults) => {
         if (err) return res.status(500).json({ error: err.message });
 
@@ -748,9 +748,9 @@ app.get('/historydetail', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         // Render dữ liệu vào historydpm.ejs
-        res.render('historydetail', { 
-            sensor, 
-            data: results, 
+        res.render('historydetail', {
+            sensor,
+            data: results,
             appName: process.env.LOCAL_IP // Chuyển appName vào cùng đối tượng
         });
     });
@@ -830,12 +830,17 @@ const checkAndInsertData = (sheetName) => {
         });
 };
 
-const callApi = async (deviceId, deviceName, deviceType) => {
+const callApi = async (deviceId, deviceName, deviceType, run) => {
     let apiUrl;
+
+    // Kiểm tra giá trị RUN
+    if (run !== "1") { // Kiểm tra nếu RUN không bằng "1"
+        console.log(`Skipping API call for ${deviceName} because RUN is not "1".`);
+        return; // Bỏ qua nếu RUN không bằng "1"
+    }
 
     // Kiểm tra TYPE để xác định URL gọi API
     if (deviceType === 'Conveyor') {
-
         apiUrl = `http://${process.env.HOST}/api/states/sensor.dcbusvoltage_${deviceId}`;
     } else {
         apiUrl = `http://${process.env.HOST}/api/states/sensor.i1_${deviceId}`;
@@ -866,7 +871,7 @@ const handleUnavailableAlarm = async (deviceName) => {
         SELECT * FROM alarm 
         WHERE sensor = ? AND (status = 'new' OR status = 'pending')
     `;
-    
+
     db.query(checkSql, [deviceName], (err, results) => {
         if (err) {
             console.error('Error checking alarms:', err);
@@ -962,7 +967,7 @@ const automateApiCalls = async () => {
 
         const interval = setInterval(() => {
             if (index < devices.length) {
-                callApi(devices[index].id, devices[index].name, devices[index].type);
+                callApi(devices[index].id, devices[index].name, devices[index].type, devices[index].run);
                 index++;
             } else {
                 clearInterval(interval);
@@ -978,7 +983,7 @@ const automateApiCalls = async () => {
 automateApiCalls(); // Bắt đầu tự động gọi API
 
 // Khởi động server
-app.listen(PORT, process.env.LOCAL_IP ,() => {
+app.listen(PORT, process.env.LOCAL_IP, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
 // app.listen(PORT, () => {
