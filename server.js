@@ -881,7 +881,7 @@ const handleUnavailableAlarm = async (deviceName) => {
 
     db.query(checkSql, [deviceName], (err, results) => {
         if (err) {
-            console.error('Error checking alarms for device:', deviceName, err.message);
+            console.error('Error checking alarms for device:', deviceName);
             return;
         }
 
@@ -894,7 +894,7 @@ const handleUnavailableAlarm = async (deviceName) => {
             `;
             db.query(updateSql, [deviceName], (err) => {
                 if (err) {
-                    console.error('Error updating alarm for device:', deviceName, err.message);
+                    console.error('Error updating alarm for device:', deviceName);
                 } else {
                     console.log(`Updated change_timestamps for alarm of ${deviceName}.`);
                 }
@@ -907,7 +907,7 @@ const handleUnavailableAlarm = async (deviceName) => {
             `;
             db.query(pendingSql, [deviceName], (err, pendingResults) => {
                 if (err) {
-                    console.error('Error checking pending alarms for device:', deviceName, err.message);
+                    console.error('Error checking pending alarms for device:', deviceName);
                     return;
                 }
 
@@ -920,7 +920,7 @@ const handleUnavailableAlarm = async (deviceName) => {
                     `;
                     db.query(updateDoneSql, [deviceName], (err) => {
                         if (err) {
-                            console.error('Error updating alarm to done for device:', deviceName, err.message);
+                            console.error('Error updating alarm to done for device:', deviceName);
                         } else {
                             console.log(`Updated alarm status to done for ${deviceName}.`);
                         }
@@ -942,7 +942,7 @@ const handleUnavailableAlarm = async (deviceName) => {
                     ];
                     db.query(insertSql, values, (err) => {
                         if (err) {
-                            console.error('Error inserting new alarm for device:', deviceName, err.message);
+                            console.error('Error inserting new alarm for device:', deviceName);
                         } else {
                             console.log(`Created new alarm for ${deviceName}.`);
                         }
