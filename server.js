@@ -830,11 +830,14 @@ const checkAndInsertData = (sheetName) => {
         });
 };
 
+let successCount = 0; // Đếm số lượng cuộc gọi API thành công
+let failureCount = 0; // Đếm số lượng cuộc gọi API thất bại
+let unavailableCount = 0; // Đếm số lượng thiết bị không khả dụng
+
 const callApi = async (deviceId, deviceName, deviceType, run) => {
     let apiUrl;
-    console.log(`Calling API for ${deviceName}... ${run}`);
     // Kiểm tra giá trị RUN
-    if (run !== "1") { // Kiểm tra nếu RUN không bằng "1"
+    if (run !== "1") {
         console.log(`Skipping API call for ${deviceName} because RUN is not "1".`);
         return; // Bỏ qua nếu RUN không bằng "1"
     }
@@ -855,15 +858,19 @@ const callApi = async (deviceId, deviceName, deviceType, run) => {
         });
 
         const state = response.data.state;
-        console.log(`Data for ${deviceName}:`, response.data);
 
         if (state === 'unavailable') {
             await handleUnavailableAlarm(deviceName);
+            unavailableCount++; // Tăng biến đếm nếu trạng thái là unavailable
+        } else {
+            successCount++; // Tăng biến đếm nếu cuộc gọi thành công
         }
     } catch (error) {
         console.error(`Error calling API for ${deviceName}:`, error);
+        failureCount++; // Tăng biến đếm nếu có lỗi
     }
 };
+
 
 // Hàm xử lý alarm khi trạng thái là unavailable
 const handleUnavailableAlarm = async (deviceName) => {
@@ -874,7 +881,7 @@ const handleUnavailableAlarm = async (deviceName) => {
 
     db.query(checkSql, [deviceName], (err, results) => {
         if (err) {
-            console.error('Error checking alarms:', err);
+            console.error('Error checking alarms for device:', deviceName, err.message);
             return;
         }
 
@@ -887,7 +894,7 @@ const handleUnavailableAlarm = async (deviceName) => {
             `;
             db.query(updateSql, [deviceName], (err) => {
                 if (err) {
-                    console.error('Error updating alarm:', err);
+                    console.error('Error updating alarm for device:', deviceName, err.message);
                 } else {
                     console.log(`Updated change_timestamps for alarm of ${deviceName}.`);
                 }
@@ -900,7 +907,7 @@ const handleUnavailableAlarm = async (deviceName) => {
             `;
             db.query(pendingSql, [deviceName], (err, pendingResults) => {
                 if (err) {
-                    console.error('Error checking pending alarms:', err);
+                    console.error('Error checking pending alarms for device:', deviceName, err.message);
                     return;
                 }
 
@@ -908,12 +915,12 @@ const handleUnavailableAlarm = async (deviceName) => {
                     // Nếu có alarm với trạng thái pending nhưng không phải unavailable, cập nhật thành done
                     const updateDoneSql = `
                         UPDATE alarm 
-                        SET status = 'done' 
+                        SET status = 'done', state = 'done', message = 'Sensor is available'
                         WHERE sensor = ? AND status = 'pending'
                     `;
                     db.query(updateDoneSql, [deviceName], (err) => {
                         if (err) {
-                            console.error('Error updating alarm to done:', err);
+                            console.error('Error updating alarm to done for device:', deviceName, err.message);
                         } else {
                             console.log(`Updated alarm status to done for ${deviceName}.`);
                         }
@@ -928,14 +935,14 @@ const handleUnavailableAlarm = async (deviceName) => {
                         deviceName,
                         'unavailable',
                         'none',
-                        'default', // Có thể thay đổi nếu cần
+                        'disconnected', // Có thể thay đổi nếu cần
                         1, // Priority
                         'Sensor is unavailable',
                         'new'
                     ];
                     db.query(insertSql, values, (err) => {
                         if (err) {
-                            console.error('Error inserting new alarm:', err);
+                            console.error('Error inserting new alarm for device:', deviceName, err.message);
                         } else {
                             console.log(`Created new alarm for ${deviceName}.`);
                         }
@@ -945,6 +952,7 @@ const handleUnavailableAlarm = async (deviceName) => {
         }
     });
 };
+
 
 // Hàm lấy danh sách thiết bị từ cơ sở dữ liệu
 const getDevices = () => {
@@ -960,7 +968,6 @@ const getDevices = () => {
 };
 
 // Hàm tự động gọi API cho từng thiết bị
-// Hàm tự động gọi API cho từng thiết bị
 const automateApiCalls = async () => {
     try {
         const devices = await getDevices();
@@ -970,7 +977,16 @@ const automateApiCalls = async () => {
             callApi(device.id, device.name, device.type, device.run)
         ));
 
+        // In ra thống kê
         console.log('Finished calling API for all devices.');
+        console.log(`Total successful API calls: ${successCount}`);
+        console.log(`Total failed API calls: ${failureCount}`);
+        console.log(`Total unavailable devices: ${unavailableCount}`);
+
+        // Reset các biến đếm cho lần gọi tiếp theo
+        successCount = 0;
+        failureCount = 0;
+        unavailableCount = 0;
 
         // Lặp lại sau 5 giây
         setTimeout(automateApiCalls, 5000);
