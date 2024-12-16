@@ -6,10 +6,13 @@ const path = require('path');
 const XLSX = require('xlsx');
 const fs = require('fs');
 const moment = require('moment-timezone');
+const xlsx = require('xlsx');
 const app = express();
 require('dotenv').config();
-
+const { automateApiCalls } = require('./writealarm.js');
+const workbook = xlsx.readFile('./device.xlsx');
 const PORT = 3008;
+
 
 // Middleware
 app.use(cors());
@@ -35,53 +38,14 @@ const db = mysql.createConnection({
 
 db.connect(err => {
     if (err) throw err;
+
     console.log('Connected to MySQL Database');
+    createTable();  
 });
 
 
-// API ghi dữ liệu
-// app.post('/api/sensor', (req, res) => {
-//     const { sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status } = req.body;
-
-//     // Kiểm tra xem có bản ghi nào với sensor và trạng thái 'new', 'pending', hoặc 'done'
-//     const checkSql = 'SELECT * FROM alarm WHERE sensor = ? AND status IN ("new", "pending", "done")';
-
-//     db.query(checkSql, [sensor], (err, results) => {
-//         if (err) return res.status(500).json({ error: err.message });
-
-//         if (results.length > 0) {
-//             // Nếu có bản ghi, cập nhật trạng thái thành 'new' và xóa change_timestamps cũ
-//             const updateSql = `
-//                 UPDATE alarm 
-//                 SET 
-//                     sensor_state = ?, 
-//                     acknowledgment_state = "none",
-//                     alarm_class = ?, 
-//                     priority = ?, 
-//                     message = ?, 
-//                     status = "new", 
-//                     timestamp = NOW(),
-//                     change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')) 
-//                 WHERE sensor = ? AND status IN ("new", "pending", "done")`;
-
-//             db.query(updateSql, [sensor_state, alarm_class, priority, message, sensor], (err, result) => {
-//                 if (err) return res.status(500).json({ error: err.message });
-//                 res.json({ message: 'Trạng thái đã được cập nhật thành "new".' });
-//             });
-//         } else {
-//             // Nếu không có bản ghi phù hợp, thêm một bản ghi mới
-//             const insertSql = `
-//                 INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
-//                 VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))`;
-
-//             db.query(insertSql, [sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status], (err, result) => {
-//                 if (err) return res.status(500).json({ error: err.message });
-//                 res.status(201).json({ id: result.insertId });
-//             });
-//         }
-//     });
-// });
-
+// Hàm tạo bảng alarm
+automateApiCalls();
 // Mảng tạm thời để lưu các yêu cầu
 let requestQueue = [];
 let timeoutId;
@@ -792,6 +756,80 @@ app.get('/historydetail', (req, res) => {
         });
     });
 });
+
+
+// Tạo bảng nếu chưa tồn tại
+const createTable = () => {
+    const createTableSql = `
+        CREATE TABLE IF NOT EXISTS device (
+            ID INT PRIMARY KEY AUTO_INCREMENT,
+            GATEWAY VARCHAR(255),
+            IP VARCHAR(255),
+            TYPE VARCHAR(255),
+            NAME VARCHAR(255),
+            DEVICE VARCHAR(255),
+            RUN VARCHAR(255),
+            STATE VARCHAR(255)
+        )
+    `;
+
+    db.query(createTableSql, (err, results) => {
+        if (err) {
+            console.error('Error creating table:', err);
+        } else {
+            console.log('Table checked/created successfully.');
+            // Sau khi tạo bảng, chèn dữ liệu
+            checkAndInsertData('CONVEYOR');
+            checkAndInsertData('DPM');
+        }
+    });
+};
+
+// Hàm kiểm tra và chèn dữ liệu từ sheet vào cơ sở dữ liệu
+// Hàm kiểm tra và chèn dữ liệu từ sheet vào cơ sở dữ liệu
+const checkAndInsertData = (sheetName) => {
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+    let insertedCount = 0; // Biến để đếm số bản ghi đã chèn
+
+    const promises = data.map(row => {
+        return new Promise((resolve, reject) => {
+            const checkSql = "SELECT COUNT(*) AS count FROM device WHERE DEVICE = ?";
+            db.query(checkSql, [row.DEVICE], (err, results) => {
+                if (err) {
+                    console.error(`Error checking data from ${sheetName}:`, err);
+                    return reject(err);
+                }
+
+                // Nếu không có bản ghi nào, chèn bản ghi mới
+                if (results[0].count === 0) {
+                    const insertSql = "INSERT INTO device (GATEWAY, IP, TYPE, NAME, DEVICE, RUN, STATE) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    const values = [row.GATEWAY, row.IP, row.TYPE, row.NAME, row.DEVICE, row.RUN, row.STATE];
+                    db.query(insertSql, values, (err, results) => {
+                        if (err) {
+                            console.error(`Error inserting data from ${sheetName}:`, err);
+                            return reject(err);
+                        } else {
+                            insertedCount++; // Tăng biến đếm
+                            resolve(); // Hoàn thành promise
+                        }
+                    });
+                } else {
+                    resolve(); // Nếu bản ghi đã tồn tại, cũng hoàn thành promise
+                }
+            });
+        });
+    });
+
+    // Đợi tất cả các promise hoàn thành
+    Promise.all(promises)
+        .then(() => {
+            console.log(`Total inserted rows from ${sheetName}: ${insertedCount}`);
+        })
+        .catch(err => {
+            console.error('Error during data insertion:', err);
+        });
+};
 
 // Khởi động server
 app.listen(PORT, process.env.LOCAL_IP ,() => {
