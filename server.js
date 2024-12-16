@@ -832,7 +832,7 @@ const checkAndInsertData = (sheetName) => {
 
 const callApi = async (deviceId, deviceName, deviceType, run) => {
     let apiUrl;
-
+    console.log(`Calling API for ${deviceName}... ${run}`);
     // Kiểm tra giá trị RUN
     if (run !== "1") { // Kiểm tra nếu RUN không bằng "1"
         console.log(`Skipping API call for ${deviceName} because RUN is not "1".`);
