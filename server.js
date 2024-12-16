@@ -949,7 +949,7 @@ const handleUnavailableAlarm = async (deviceName) => {
 // Hàm lấy danh sách thiết bị từ cơ sở dữ liệu
 const getDevices = () => {
     return new Promise((resolve, reject) => {
-        const sql = "SELECT DEVICE, NAME, TYPE FROM device"; // Lấy cả DEVICE, NAME và TYPE
+        const sql = "SELECT DEVICE, NAME, TYPE, RUN FROM device"; // Lấy cả DEVICE, NAME và TYPE
         db.query(sql, (err, results) => {
             if (err) {
                 return reject(err);
