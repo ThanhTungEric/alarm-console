@@ -960,25 +960,25 @@ const getDevices = () => {
 };
 
 // Hàm tự động gọi API cho từng thiết bị
+// Hàm tự động gọi API cho từng thiết bị
 const automateApiCalls = async () => {
     try {
         const devices = await getDevices();
-        let index = 0;
 
-        const interval = setInterval(() => {
-            if (index < devices.length) {
-                callApi(devices[index].id, devices[index].name, devices[index].type, devices[index].run);
-                index++;
-            } else {
-                clearInterval(interval);
-                console.log('Finished calling API for all devices.');
-                db.end(); // Đóng kết nối cơ sở dữ liệu
-            }
-        }, 5000); // Gọi API mỗi 5 giây
+        // Gọi API cho tất cả các thiết bị đồng thời
+        await Promise.all(devices.map(device => 
+            callApi(device.id, device.name, device.type, device.run)
+        ));
+
+        console.log('Finished calling API for all devices.');
+
+        // Lặp lại sau 5 giây
+        setTimeout(automateApiCalls, 5000);
     } catch (error) {
         console.error('Error during automation:', error);
     }
 };
+
 
 automateApiCalls(); // Bắt đầu tự động gọi API
 
