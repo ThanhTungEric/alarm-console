@@ -954,7 +954,7 @@ const getDevices = () => {
             if (err) {
                 return reject(err);
             }
-            resolve(results.map(row => ({ id: row.DEVICE, name: row.NAME, type: row.TYPE })));
+            resolve(results.map(row => ({ id: row.DEVICE, name: row.NAME, type: row.TYPE, run: row.RUN })));
         });
     });
 };
