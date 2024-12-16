@@ -835,9 +835,9 @@ const callApi = async (deviceId, deviceName, deviceType) => {
 
     // Kiểm tra TYPE để xác định URL gọi API
     if (deviceType === 'Conveyor') {
-        apiUrl = `http://${process.env.TOKEN}/api/states/sensor.i1_${deviceId}`;
+        apiUrl = `http://${process.env.HOST}/api/states/sensor.i1_${deviceId}`;
     } else {
-        apiUrl = `http://${process.env.TOKEN}/api/states/sensor.dcbusvoltage_${deviceId}`;
+        apiUrl = `http://${process.env.HOST}/api/states/sensor.dcbusvoltage_${deviceId}`;
     }
 
     try {
