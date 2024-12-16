@@ -989,7 +989,7 @@ const automateApiCalls = async () => {
         unavailableCount = 0;
 
         // Lặp lại sau 5 giây
-        setTimeout(automateApiCalls, 5000);
+        setTimeout(automateApiCalls, 10000);
     } catch (error) {
         console.error('Error during automation:', error);
     }
