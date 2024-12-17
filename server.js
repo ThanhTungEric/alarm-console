@@ -785,7 +785,6 @@ const createTable = () => {
 };
 
 // Hàm kiểm tra và chèn dữ liệu từ sheet vào cơ sở dữ liệu
-// Hàm kiểm tra và chèn dữ liệu từ sheet vào cơ sở dữ liệu
 const checkAndInsertData = (sheetName) => {
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet);
@@ -866,11 +865,14 @@ const callApi = async (deviceId, deviceName, deviceType, run) => {
             successCount++; // Tăng biến đếm nếu cuộc gọi thành công
         }
     } catch (error) {
-        console.error(`Error calling API for ${deviceName}:`, error);
+        console.error(`Error calling API for ${deviceName}:`);
         failureCount++; // Tăng biến đếm nếu có lỗi
     }
 };
 
+
+// Biến toàn cục để đếm số lần trạng thái unavailable
+let unavailableCountNum = 0;
 
 // Hàm xử lý alarm khi trạng thái là unavailable
 const handleUnavailableAlarm = async (deviceName) => {
@@ -926,32 +928,40 @@ const handleUnavailableAlarm = async (deviceName) => {
                         }
                     });
                 } else {
-                    // Nếu không có alarm nào, tạo mới
-                    const insertSql = `
-                        INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))
-                    `;
-                    const values = [
-                        deviceName,
-                        'unavailable',
-                        'none',
-                        'disconnected', // Có thể thay đổi nếu cần
-                        1, // Priority
-                        'Sensor is unavailable',
-                        'new'
-                    ];
-                    db.query(insertSql, values, (err) => {
-                        if (err) {
-                            console.error('Error inserting new alarm for device:', deviceName);
-                        } else {
-                            console.log(`Created new alarm for ${deviceName}.`);
-                        }
-                    });
+                    // Nếu không có alarm nào, tăng biến đếm unavailableCount
+                    unavailableCountNum++;
+
+                    // Kiểm tra nếu đã có 6 lần trạng thái unavailable
+                    if (unavailableCountNum >= 6) {
+                        const insertSql = `
+                            INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))
+                        `;
+                        const values = [
+                            deviceName,
+                            'unavailable',
+                            'none',
+                            'disconnected', // Có thể thay đổi nếu cần
+                            1, // Priority
+                            'Sensor is unavailable',
+                            'new'
+                        ];
+                        db.query(insertSql, values, (err) => {
+                            if (err) {
+                                console.error('Error inserting new alarm for device:', deviceName);
+                            } else {
+                                console.log(`Created new alarm for ${deviceName}.`);
+                                // Reset lại biến đếm
+                                unavailableCountNum = 0;
+                            }
+                        });
+                    }
                 }
             });
         }
     });
 };
+
 
 
 // Hàm lấy danh sách thiết bị từ cơ sở dữ liệu
