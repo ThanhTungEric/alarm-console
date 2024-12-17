@@ -833,13 +833,99 @@ let successCount = 0; // Đếm số lượng cuộc gọi API thành công
 let failureCount = 0; // Đếm số lượng cuộc gọi API thất bại
 let unavailableCount = 0; // Đếm số lượng thiết bị không khả dụng
 
-const callApi = async (deviceId, deviceName, deviceType, run) => {
-    let apiUrl;
-    // Kiểm tra giá trị RUN
-    if (run !== "1") {
-        console.log(`Skipping API call for ${deviceName} because RUN is not "1".`);
-        return; // Bỏ qua nếu RUN không bằng "1"
+// Đối tượng để theo dõi số lần báo trạng thái unavailable
+const unavailableCounts = {};
+
+// Hàm xử lý alarm khi trạng thái là unavailable
+const handleUnavailableAlarm = async (deviceName) => {
+    // Khởi tạo đếm nếu chưa có
+    if (!unavailableCounts[deviceName]) {
+        unavailableCounts[deviceName] = 0;
     }
+
+    // Tăng số lần báo trạng thái unavailable
+    unavailableCounts[deviceName]++;
+
+    // Kiểm tra xem đã đủ 6 lần chưa
+    if (unavailableCounts[deviceName] >= 6) {
+        const checkSql = `
+            SELECT * FROM alarm 
+            WHERE sensor = ? AND (status = 'new' OR status = 'pending' OR status = 'done')
+        `;
+        
+        db.query(checkSql, [deviceName], (err, results) => {
+            if (err) {
+                console.error('Error checking alarms:', err);
+                return;
+            }
+
+            if (results.length > 0) {
+                // Nếu đã có alarm, cập nhật change_timestamps và chuyển trạng thái thành new
+                const updateSql = `
+                    UPDATE alarm 
+                    SET change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')), status = 'new'
+                    WHERE sensor = ? AND (status = 'new' OR status = 'pending' OR status = 'done')
+                `;
+                db.query(updateSql, [deviceName], (err) => {
+                    if (err) {
+                        console.error('Error updating alarm:', err);
+                    } else {
+                        console.log(`Updated alarm status to new for ${deviceName}.`);
+                    }
+                });
+            } else {
+                // Nếu không có alarm, tạo mới
+                const insertSql = `
+                    INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))
+                `;
+                const values = [
+                    deviceName,
+                    'unavailable',
+                    'none',
+                    'default', // Có thể thay đổi nếu cần
+                    1, // Priority
+                    'Sensor is unavailable',
+                    'new'
+                ];
+                db.query(insertSql, values, (err) => {
+                    if (err) {
+                        console.error('Error inserting new alarm:', err);
+                    } else {
+                        console.log(`Created new alarm for ${deviceName}.`);
+                    }
+                });
+            }
+
+            // Reset số lần báo trạng thái unavailable
+            unavailableCounts[deviceName] = 0;
+        });
+    }
+};
+
+// Hàm này sẽ được gọi khi trạng thái không phải là unavailable
+const handleAvailableState = (deviceName) => {
+    // Reset số lần báo trạng thái unavailable khi thiết bị trở lại trạng thái available
+    unavailableCounts[deviceName] = 0;
+
+    // Cập nhật trạng thái alarm thành done
+    const updateDoneSql = `
+        UPDATE alarm 
+        SET status = 'done' 
+        WHERE sensor = ? AND (status = 'new' OR status = 'pending')
+    `;
+    db.query(updateDoneSql, [deviceName], (err) => {
+        if (err) {
+            console.error('Error updating alarm to done:', err);
+        } else {
+            console.log(`Updated alarm status to done for ${deviceName}.`);
+        }
+    });
+};
+
+// Cập nhật hàm gọi API để xử lý trạng thái không phải là unavailable
+const callApi = async (deviceId, deviceName, deviceType) => {
+    let apiUrl;
 
     // Kiểm tra TYPE để xác định URL gọi API
     if (deviceType === 'Conveyor') {
@@ -857,112 +943,17 @@ const callApi = async (deviceId, deviceName, deviceType, run) => {
         });
 
         const state = response.data.state;
+        console.log(`Data for ${deviceName}:`, response.data);
 
         if (state === 'unavailable') {
             await handleUnavailableAlarm(deviceName);
-            unavailableCount++; // Tăng biến đếm nếu trạng thái là unavailable
         } else {
-            successCount++; // Tăng biến đếm nếu cuộc gọi thành công
+            handleAvailableState(deviceName);
         }
     } catch (error) {
-        console.error(`Error calling API for ${deviceName}:`);
-        failureCount++; // Tăng biến đếm nếu có lỗi
+        console.error(`Error calling API for ${deviceName}:`, error);
     }
 };
-
-
-// Biến toàn cục để đếm số lần trạng thái unavailable
-let unavailableCountNum = 0;
-
-// Hàm xử lý alarm khi trạng thái là unavailable
-const handleUnavailableAlarm = async (deviceName) => {
-    const checkSql = `
-        SELECT * FROM alarm 
-        WHERE sensor = ? AND (status = 'new' OR status = 'pending')
-    `;
-
-    db.query(checkSql, [deviceName], (err, results) => {
-        if (err) {
-            console.error('Error checking alarms for device:', deviceName);
-            return;
-        }
-
-        if (results.length > 0) {
-            // Nếu có alarm với trạng thái new, cập nhật change_timestamps
-            const updateSql = `
-                UPDATE alarm 
-                SET change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new'))
-                WHERE sensor = ? AND status = 'new'
-            `;
-            db.query(updateSql, [deviceName], (err) => {
-                if (err) {
-                    console.error('Error updating alarm for device:', deviceName);
-                } else {
-                    console.log(`Updated change_timestamps for alarm of ${deviceName}.`);
-                }
-            });
-        } else {
-            // Nếu không có alarm với trạng thái new, kiểm tra trạng thái khác
-            const pendingSql = `
-                SELECT * FROM alarm 
-                WHERE sensor = ? AND status = 'pending'
-            `;
-            db.query(pendingSql, [deviceName], (err, pendingResults) => {
-                if (err) {
-                    console.error('Error checking pending alarms for device:', deviceName);
-                    return;
-                }
-
-                if (pendingResults.length > 0) {
-                    // Nếu có alarm với trạng thái pending nhưng không phải unavailable, cập nhật thành done
-                    const updateDoneSql = `
-                        UPDATE alarm 
-                        SET status = 'done', state = 'done', message = 'Sensor is available'
-                        WHERE sensor = ? AND status = 'pending'
-                    `;
-                    db.query(updateDoneSql, [deviceName], (err) => {
-                        if (err) {
-                            console.error('Error updating alarm to done for device:', deviceName);
-                        } else {
-                            console.log(`Updated alarm status to done for ${deviceName}.`);
-                        }
-                    });
-                } else {
-                    // Nếu không có alarm nào, tăng biến đếm unavailableCount
-                    unavailableCountNum++;
-
-                    // Kiểm tra nếu đã có 6 lần trạng thái unavailable
-                    if (unavailableCountNum >= 6) {
-                        const insertSql = `
-                            INSERT INTO alarm (sensor, sensor_state, acknowledgment_state, alarm_class, priority, message, status, change_timestamps) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')))
-                        `;
-                        const values = [
-                            deviceName,
-                            'unavailable',
-                            'none',
-                            'disconnected', // Có thể thay đổi nếu cần
-                            1, // Priority
-                            'Sensor is unavailable',
-                            'new'
-                        ];
-                        db.query(insertSql, values, (err) => {
-                            if (err) {
-                                console.error('Error inserting new alarm for device:', deviceName);
-                            } else {
-                                console.log(`Created new alarm for ${deviceName}.`);
-                                // Reset lại biến đếm
-                                unavailableCountNum = 0;
-                            }
-                        });
-                    }
-                }
-            });
-        }
-    });
-};
-
-
 
 // Hàm lấy danh sách thiết bị từ cơ sở dữ liệu
 const getDevices = () => {
