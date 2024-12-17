@@ -907,7 +907,7 @@ const handleUnavailableAlarm = async (deviceName) => {
 const handleAvailableState = (deviceName) => {
     // Reset số lần báo trạng thái unavailable khi thiết bị trở lại trạng thái available
     unavailableCounts[deviceName] = 0;
-    const count =  0;
+
     // Cập nhật trạng thái alarm thành done
     const updateDoneSql = `
         UPDATE alarm 
@@ -918,10 +918,9 @@ const handleAvailableState = (deviceName) => {
         if (err) {
             console.error('Error updating alarm to done:', deviceName);
         } else {
-            count++;
+            console.log(`Updated alarm status to done for ${deviceName}.`);
         }
     });
-    console.log(`Updated alarm status to done for: ${count} devices.`);
 };
 
 // Cập nhật hàm gọi API để xử lý trạng thái không phải là unavailable
