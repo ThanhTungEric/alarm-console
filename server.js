@@ -795,7 +795,7 @@ const checkAndInsertData = (sheetName) => {
             const checkSql = "SELECT COUNT(*) AS count FROM device WHERE DEVICE = ?";
             db.query(checkSql, [row.DEVICE], (err, results) => {
                 if (err) {
-                    console.error(`Error checking data from ${sheetName}:`, err);
+                    console.error(`Error checking data from ${sheetName}:`);
                     return reject(err);
                 }
 
@@ -805,7 +805,7 @@ const checkAndInsertData = (sheetName) => {
                     const values = [row.GATEWAY, row.IP, row.TYPE, row.NAME, row.DEVICE, row.RUN, row.STATE];
                     db.query(insertSql, values, (err, results) => {
                         if (err) {
-                            console.error(`Error inserting data from ${sheetName}:`, err);
+                            console.error(`Error inserting data from ${sheetName}`);
                             return reject(err);
                         } else {
                             insertedCount++; // Tăng biến đếm
@@ -825,7 +825,7 @@ const checkAndInsertData = (sheetName) => {
             console.log(`Total inserted rows from ${sheetName}: ${insertedCount}`);
         })
         .catch(err => {
-            console.error('Error during data insertion:', err);
+            console.error('Error during data insertion:');
         });
 };
 
@@ -1001,7 +1001,7 @@ const automateApiCalls = async () => {
         // Lặp lại sau 5 giây
         setTimeout(automateApiCalls, 10000);
     } catch (error) {
-        console.error('Error during automation:', error);
+        console.error('Error during automation');
     }
 };
 
