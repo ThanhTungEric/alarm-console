@@ -10,7 +10,7 @@ const xlsx = require('xlsx');
 const app = express();
 require('dotenv').config();
 
-const workbook = xlsx.readFile('./device.xlsx');
+const workbook = xlsx.readFile('./device-v1.xlsx');
 const PORT = 3008;
 const axios = require('axios');
 
@@ -780,6 +780,7 @@ const createTable = () => {
             // Sau khi tạo bảng, chèn dữ liệu
             checkAndInsertData('CONVEYOR');
             checkAndInsertData('DPM');
+            checkAndInsertData('PLC');
         }
     });
 };
@@ -864,7 +865,7 @@ const handleUnavailableAlarm = async (deviceName) => {
                 const updateSql = `
                     UPDATE alarm 
                     SET change_timestamps = JSON_ARRAY(JSON_OBJECT('time', NOW(), 'state', 'new')), status = 'new'
-                    WHERE sensor = ? AND (status = 'new' OR status = 'pending' OR status = 'done')
+                    WHERE sensor = ? AND (status = 'new' OR status = 'done')
                 `;
                 db.query(updateSql, [deviceName], (err) => {
                     if (err) {
@@ -881,11 +882,11 @@ const handleUnavailableAlarm = async (deviceName) => {
                 `;
                 const values = [
                     deviceName,
-                    'unavailable',
+                    'disconected', // Có thể thay đổi nếu cần
                     'none',
                     'default', // Có thể thay đổi nếu cần
                     1, // Priority
-                    'Sensor is unavailable',
+                    'Sensor is disconected',
                     'new'
                 ];
                 db.query(insertSql, values, (err) => {
@@ -911,7 +912,7 @@ const handleAvailableState = (deviceName) => {
     // Cập nhật trạng thái alarm thành done
     const updateDoneSql = `
         UPDATE alarm 
-        SET status = 'done' 
+        SET status = 'done', message = 'Device reconnected', change_timestamps = JSON_ARRAY_APPEND(change_timestamps, '$', JSON_OBJECT('time', NOW(), 'state', 'done'))
         WHERE sensor = ? AND (status = 'new' OR status = 'pending')
     `;
     db.query(updateDoneSql, [deviceName], (err) => {
@@ -928,7 +929,9 @@ const callApi = async (deviceId, deviceName, deviceType) => {
     let apiUrl;
 
     // Kiểm tra TYPE để xác định URL gọi API
-    if (deviceType === 'Conveyor') {
+    if (deviceType === 'PLC') {
+        apiUrl = `http://${process.env.HOST}/api/states/sensor.${deviceId}`;
+    } else if (deviceType === 'Conveyor') {
         apiUrl = `http://${process.env.HOST}/api/states/sensor.dcbusvoltage_${deviceId}`;
     } else {
         apiUrl = `http://${process.env.HOST}/api/states/sensor.i1_${deviceId}`;

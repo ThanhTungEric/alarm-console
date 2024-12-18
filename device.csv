@@ -1,0 +1,11 @@
+﻿GATEWAY,IP,TYPE,NAME,DEVICE,RUN,STATE
+no,no,PLC,reg_0_inverter_floor_1,reg_0_inverter_floor_1,1,NaN
+no,no,PLC,reg_0_inverter_floor_2,reg_0_inverter_floor_2,1,NaN
+no,no,PLC,reg_0_lighting_floor_1_lu1,reg_0_lighting_floor_1_lu1,1,NaN
+no,no,PLC,reg_0_lighting_floor_1_lu2,reg_0_lighting_floor_1_lu2,1,NaN
+no,no,PLC,reg_0_lighting_floor_1_lu3,reg_0_lighting_floor_1_lu3,1,NaN
+no,no,PLC,reg_0_lighting_floor_1_lu4,reg_0_lighting_floor_1_lu4,1,NaN
+no,no,PLC,reg_0_lighting_floor_2_lu1,reg_0_lighting_floor_2_lu1,1,NaN
+no,no,PLC,reg_0_lighting_floor_2_lu2,reg_0_lighting_floor_2_lu2,1,NaN
+no,no,PLC,reg_0_lighting_floor_2_lu3,reg_0_lighting_floor_2_lu3,1,NaN
+no,no,PLC,reg_0_lighting_floor_2_lu4,reg_0_lighting_floor_2_lu4,1,NaN
